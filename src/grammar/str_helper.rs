@@ -4,10 +4,10 @@ static ASCII_LETTERS:[&'static str;52] = ["a","b","c","d","e","f","g","h","i","j
 static ASCII_DIGITS: [&'static str;10] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
 
-enum CharRange{
+pub enum CharRange{
     Digit, Letters
 }
-fn range_chars_as_str<'l_use>(type_of_range:CharRange) -> Vec<Expansion<'l_use>>{
+pub fn range_chars_as_str<'l_use>(type_of_range:CharRange) -> Vec<Expansion<'l_use>>{
     match type_of_range{
         CharRange::Digit => {
             let mut res = Vec::with_capacity(ASCII_DIGITS.len());

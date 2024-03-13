@@ -4,12 +4,10 @@ use std::collections::*;
 use regex::*;
 use crate::grammar::*;
 
-
     #[test]
     fn test_new_symbol(){
         let mut grammars: Grammar = HashMap::new();
-        let re = Regex::new(r"(<[^<> ]*>)").unwrap();
-        let mut rd = rand::thread_rng();
+  
         grammars.insert("<start>", vec![Union::OnlyA("<expr>")]);
         grammars.insert(
             "<expr>",
