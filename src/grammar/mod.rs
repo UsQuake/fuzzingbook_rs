@@ -1,6 +1,6 @@
 mod options;
 mod test;
-
+mod str_helper;
 use self::options::Option;
 
 use rand::prelude::*;
@@ -51,29 +51,7 @@ pub fn extend_grammar<'l_use>(grammar: &Grammar<'l_use>, extension: Grammar<'l_u
     result
 }
 
-pub fn srange<'l_use>(sentence: & [char]) -> Vec<Expansion<'l_use>>{
-    let mut result = Vec::with_capacity(sentence.len());
-    for c in sentence{
-        let k = format!("{}", c.clone());
-        result.push(Union::OnlyA(k.as_str()))
-    }
-    result
-}
 
-pub fn crange<'l_use>(start_char: char, end_char: char) -> Result<Vec<Expansion<'l_use>>, & 'static str>{
-    let diff = end_char as i32 - start_char as i32;
-    if diff < 0 {
-        return Err("character range is wrong!");
-    } else{
-        let abs_diff = diff as usize;
-        let mut result = Vec::with_capacity(abs_diff);
-        for ascii_as_usize in start_char as u8..=end_char as u8{
-            let k = format!("{}", ascii_as_usize.clone() as char);
-            result.push(Union::OnlyA(k.as_str()))
-        }
-        return Ok(result);
-    }
-}
 pub fn new_symbol<'l_use>(grammar: &Grammar, symbol_name: & 'l_use str) -> String{
     match grammar.get(symbol_name){
         Some(_) =>{
