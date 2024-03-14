@@ -12,14 +12,14 @@ pub fn range_chars_as_str<'l_use>(type_of_range:CharRange) -> Vec<Expansion<'l_u
         CharRange::Digit => {
             let mut res = Vec::with_capacity(ASCII_DIGITS.len());
             for st in ASCII_DIGITS{
-                res.push(super::Union::OnlyA(st));
+                res.push(super::Union::OnlyA(st.to_string()));
             }
             return res;
         },
         CharRange::Letters => {
             let mut res = Vec::with_capacity(ASCII_LETTERS.len());
             for st in ASCII_LETTERS{
-                res.push(super::Union::OnlyA(st));
+                res.push(super::Union::OnlyA(st.to_string()));
             }
             return res;
         },

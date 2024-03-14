@@ -3,9 +3,10 @@ mod test;
 pub mod str_helper;
 use self::options::Option;
 
+use lazy_static::lazy_static;
 use rand::prelude::*;
 use regex::Regex;
-use std::collections::HashMap;
+use std::{any::Any, collections::HashMap};
 
 
 // #[derive(Clone)]
@@ -18,25 +19,46 @@ pub enum Union<A, B>{
     OnlyA(A), OnlyB(B)
 }
 
-pub type Expansion<'l_use> = Union<& 'l_use str, (& 'l_use str, Option<'l_use>)>;
+pub type Expansion<'l_use> = Union<String, (String, Option<'l_use>)>;
 pub type Grammar<'l_use> = HashMap<& 'l_use str, Vec<Expansion<'l_use>>>;
 
-static RE_PARENTHESIZED_EXPR:Regex = Regex::new(r"\([^()]*\)[?+*]").unwrap();
-static RE_NONTERMINAL: Regex = Regex::new(r"(<[^<> ]*>)").unwrap();
+lazy_static!{
+    static ref RE_PARENTHESIZED_EXPR : Regex = Regex::new(r"\([^()]*\)[?+*]").unwrap();
+    static ref RE_NONTERMINAL : Regex = Regex::new(r"(<[^<> ]*>)").unwrap();
+    static ref RE_EXTENDED_NONTERMINAL : Regex = Regex::new(r"(<[^<> ]*>[?+*])").unwrap();
+}
 
-pub fn nonterminals<'l_use>(expansion: &Expansion<'l_use>) -> Vec<& 'l_use str> {
+
+pub fn nonterminals<'l_use>(expansion: &Expansion<'l_use>) -> Vec<String> {
+
    let expansion = match expansion{
         Union::OnlyA(only_str) =>{
-            only_str
+            only_str.to_string()
         },
         Union::OnlyB(str_and_opt) =>{
-         str_and_opt.0
+            str_and_opt.0.to_string()
         }
     };
 
     let ret = RE_NONTERMINAL
         .find_iter(&expansion)
-        .map(|m| m.as_str())
+        .map(|m| m.as_str().to_string())
+        .collect();
+    return ret;
+}
+pub fn extended_nonterminals<'l_use>(expansion: &Expansion<'l_use>) -> Vec<String>{
+    let expansion = match expansion{
+        Union::OnlyA(only_str) =>{
+            only_str.to_string()
+        },
+        Union::OnlyB(str_and_opt) =>{
+            str_and_opt.0.to_string()
+        }
+    };
+
+    let ret = RE_EXTENDED_NONTERMINAL
+        .find_iter(&expansion)
+        .map(|m| m.as_str().to_string())
         .collect();
     return ret;
 }
@@ -53,28 +75,28 @@ pub fn extend_grammar<'l_use>(grammar: &Grammar<'l_use>, extension: &Grammar<'l_
     }
     result
 }
-fn parenthesized_expressions<'l_use>(expansion: &Expansion<'l_use>) -> Vec<& 'l_use str>{
+fn parenthesized_expressions<'l_use>(expansion: &Expansion<'l_use>) -> Vec<String>{
     let expansion = match expansion{
         Union::OnlyA(s) => s.clone(),
         Union::OnlyB(s_and_map)=> s_and_map.0.clone()
     };
     let ret = RE_PARENTHESIZED_EXPR
-    .find_iter(expansion)
-    .map(|m| m.as_str())
+    .find_iter(&expansion)
+    .map(|m| m.as_str().to_string())
     .collect();
     return ret;
 }
 
-fn convert_ebnf_parentheses<'l_use>(ebnf_grammar: &Grammar<'l_use>, ext: &Grammar<'l_use>) -> Grammar<'l_use>{
+fn convert_ebnf_parentheses<'l_use>(ebnf_grammar: &mut Grammar<'l_use>, ext: &Grammar<'l_use>) -> Grammar<'l_use>{
     let mut grammar = extend_grammar(&ebnf_grammar, &ext);
-    for nonterminal in ebnf_grammar{
-        let mut expansions = nonterminal.1;
+    for nonterminal in ebnf_grammar.iter_mut(){
+        let mut expansions = nonterminal.1.clone();
 
         for i in 0..expansions.len(){
-            let expansion = expansions[i];
+            let expansion = &expansions[i];
             let expansion: Expansion<'l_use> = match expansion{
-                Union::OnlyA(st) => Union::OnlyA(st),
-                Union::OnlyB(st_and_vec) => Union::OnlyA(st_and_vec.0)
+                Union::OnlyA(st) => Union::OnlyA(st.clone()),
+                Union::OnlyB(st_and_vec) => Union::OnlyA(st_and_vec.0.clone())
             };
 
             loop{
@@ -85,24 +107,32 @@ fn convert_ebnf_parentheses<'l_use>(ebnf_grammar: &Grammar<'l_use>, ext: &Gramma
                  
 
                 for expr in parenthesized_exprs{
-                    operator = expr[-1:];
-                    contents = expr[1:-2];
+                    let operator = &expr[expr.len() - 1..expr.len()];
+                    let contents = &expr[1..expr.len() - 2];
 
-                    new_sym = new_symbol(&grammar);
+                    let mut new_sym = new_symbol(&grammar, "<symbol>");
 
-                    exp = nonterminal.1[i];
-                    opts = None;
-                    if isinstance(exp, tuple):
-                        (exp, opts) = exp
-                    //assert isinstance(exp, str)
+                    let exp = &nonterminal.1[i];
+                    match exp{
+                        Union::OnlyA(_) => {panic!("exp is expected to be tuple!");}
+                        Union::OnlyB(tuple)=>{
+                            let (exp, opts) = tuple;
 
-                    expansion = exp.replace(expr, new_sym + operator, 1)
-                    if opts:
-                        grammar[nonterminal][i] = (expansion, opts)
-                    else:
-                        grammar[nonterminal][i] = expansion
+                            let exp_copy = exp.clone();
 
-                    grammar[new_sym] = [contents]
+                            new_sym.push_str( &operator);
+                            let expansion = exp_copy.replacen(&expr, &new_sym, 1);
+                            if opts.is_empty(){
+                                nonterminal.1[i] = Union::OnlyA(expansion.clone());
+                            }else{
+                                nonterminal.1[i] = Union::OnlyB((expansion.clone(), opts.clone()));
+                            }
+                               
+                            let ref_new_sym = grammar.get_mut(new_sym.clone().as_str()).unwrap();
+                            *ref_new_sym = vec![Union::OnlyA(contents.to_string())];
+                        }
+                    }
+ 
                 }
 
             }
@@ -148,29 +178,29 @@ pub fn simple_grammar_fuzzer<'l_use>(
     let mut term = String::from(start_symbol);
     let mut expansion_trials = 0;
 
-    while nonterminals(&Union::OnlyA(&term.clone())).len() > 0 {
+    while nonterminals(&Union::OnlyA(term.clone())).len() > 0 {
         let sub_nonterminals = term.clone();
-        let none_terminals = nonterminals(&Union::OnlyA(&sub_nonterminals));
+        let none_terminals = nonterminals(&Union::OnlyA(sub_nonterminals.clone()));
         let rand_var = rd.gen_range(0..none_terminals.len());
-        let symbol_to_expand = none_terminals[rand_var];
+        let symbol_to_expand = &none_terminals[rand_var];
 
-        let expansions = &syntax[symbol_to_expand];
+        let expansions = &syntax[&symbol_to_expand.as_str()];
 
         let rand_var2 = rd.gen_range(0..expansions.len());
         let expansion = &expansions[rand_var2];
 
         let expansion = match expansion{
             Union::OnlyA(a) =>{
-                a
+                a.clone()
             },
             Union::OnlyB(b) =>{
-                b.0
+                b.0.clone()
             }
         };
 
-        let new_term = (&term).replacen(&symbol_to_expand, &expansion, 1);
+        let new_term = (&term).replacen(symbol_to_expand.as_str(), &expansion, 1);
 
-        if nonterminals(&Union::OnlyA(&new_term)).len() < max_nonterminals {
+        if nonterminals(&Union::OnlyA(new_term.clone())).len() < max_nonterminals {
             term = new_term;
             if log {
                 println!(

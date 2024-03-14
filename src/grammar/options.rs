@@ -13,7 +13,7 @@ pub fn opts<'l_use>(a: &[(&'l_use str, &'l_use dyn Any)]) -> Option<'l_use>{
     result
 }
 
-pub fn exp_string<'l_use>(expansion: &Expansion<'l_use>) -> & 'l_use str{
+pub fn exp_string<'l_use>(expansion: &Expansion<'l_use>) -> String{
     match expansion{
         Union::OnlyA(str_only) =>{
             str_only.clone()
