@@ -87,8 +87,8 @@ fn parenthesized_expressions<'l_use>(expansion: &Expansion<'l_use>) -> Vec<Strin
     return ret;
 }
 
-pub fn convert_ebnf_parentheses<'l_use>(ebnf_grammar: & Grammar<'l_use>, ext: &Grammar<'l_use>) -> Grammar<'l_use>{
-    let mut grammar = extend_grammar(&ebnf_grammar, &ext);
+pub fn convert_ebnf_parentheses<'l_use>(ebnf_grammar: & Grammar<'l_use>) -> Grammar<'l_use>{
+    let mut grammar = extend_grammar(&ebnf_grammar, &HashMap::new());
     for nonterminal_and_vector in ebnf_grammar{
         let expansions = nonterminal_and_vector.1;
 
@@ -107,24 +107,16 @@ pub fn convert_ebnf_parentheses<'l_use>(ebnf_grammar: & Grammar<'l_use>, ext: &G
                  
 
                 for expr in parenthesized_exprs{
-                    println!("expr: {}",expr);
                     let operator = &expr[expr.len() - 1..expr.len()];
                     let contents = &expr[1..expr.len() - 2];
-
                     let new_sym = new_symbol(&grammar, "<symbol>");
 
-                    println!("operator: {operator}");
-                    println!("contents: {contents}");
-                    println!("new_sym: {new_sym}");
                     let exp = &grammar.get_mut(nonterminal_and_vector.0).unwrap()[i];
                     match exp{
                         Union::OnlyA(only_exp) => {
                             let exp_copy = only_exp.clone();
 
-                            let mut combined_new_sym_and_operator = new_sym.clone();
-                            combined_new_sym_and_operator.push_str( &operator);
-
-                            let sub_exp = exp_copy.replacen(&expr, &combined_new_sym_and_operator, 1);
+                            let sub_exp = exp_copy.replacen(&expr, &(new_sym.clone() + operator), 1);
                             expansion = Union::OnlyA(sub_exp);
                             grammar.get_mut(nonterminal_and_vector.0).unwrap()[i] = expansion.clone();
                         }
@@ -133,10 +125,7 @@ pub fn convert_ebnf_parentheses<'l_use>(ebnf_grammar: & Grammar<'l_use>, ext: &G
 
                             let exp_copy = exp.clone();
 
-                            let mut combined_new_sym_and_operator = new_sym.clone();
-                            combined_new_sym_and_operator.push_str( &operator);
-
-                            let sub_exp = exp_copy.replacen(&expr, &combined_new_sym_and_operator, 1);
+                            let sub_exp = exp_copy.replacen(&expr, &(new_sym.clone() + operator), 1);
                             expansion = Union::OnlyA(sub_exp.clone());
                             if opts.is_empty(){
                                 grammar.get_mut(nonterminal_and_vector.0).unwrap()[i] = Union::OnlyA(sub_exp.clone());
@@ -146,7 +135,7 @@ pub fn convert_ebnf_parentheses<'l_use>(ebnf_grammar: & Grammar<'l_use>, ext: &G
                         }
                     }
 
-                    grammar.insert(new_sym, vec![Union::OnlyA(contents.to_string())]);
+                    grammar.insert(new_sym.clone(), vec![Union::OnlyA(contents.to_string())]);
  
                 }
 
@@ -157,14 +146,14 @@ pub fn convert_ebnf_parentheses<'l_use>(ebnf_grammar: & Grammar<'l_use>, ext: &G
     return grammar
 }
 
-fn convert_ebnf_operators<'l_use>(ebnf_grammar: Grammar, ext: &Grammar<'l_use>) -> Grammar<'l_use>{
-    let mut grammar = extend_grammar(&ebnf_grammar, &ext);
+pub fn convert_ebnf_operators<'l_use>(ebnf_grammar: &Grammar<'l_use>) -> Grammar<'l_use>{
+    let mut grammar = extend_grammar(&ebnf_grammar, &HashMap::new());
     for nonterminal_and_exps in ebnf_grammar{
         let expansions = nonterminal_and_exps.1;
 
         for i in 0..expansions.len(){
-            let mut expansion = &expansions[i];
-            let extended_symbols = extended_nonterminals(expansion);
+            let mut expansion = expansions[i].clone();
+            let extended_symbols = extended_nonterminals(&expansion);
 
             for extended_symbol in extended_symbols{
                 let operator = &extended_symbol[extended_symbol.len()-1..extended_symbol.len()];
@@ -172,24 +161,37 @@ fn convert_ebnf_operators<'l_use>(ebnf_grammar: Grammar, ext: &Grammar<'l_use>) 
 
                 let new_sym = new_symbol(&grammar, original_symbol);
 
-                exp = grammar[nonterminal_and_exps][i]
-                opts = None
-                if isinstance(exp, tuple):
-                    (exp, opts) = exp
+                let exp = &grammar.get_mut(nonterminal_and_exps.0).unwrap()[i];
+                match exp{
+                    Union::OnlyA(only_exp) => {
+                        let exp_copy = only_exp.clone();
 
-                new_exp = exp.replacen(extended_symbol, new_sym, 1)
-                if opts:
-                    grammar[nonterminal_and_exps][i] = (new_exp, opts)
-                else:
-                    grammar[nonterminal_and_exps][i] = new_exp
+                        let sub_exp = exp_copy.replacen(&extended_symbol, &new_sym, 1);
+                        expansion = Union::OnlyA(sub_exp.clone());
+                        grammar.get_mut(nonterminal_and_exps.0).unwrap()[i] = expansion.clone();
+                    }
+                    Union::OnlyB(tuple)=>{
+                        let (exp, opts) = tuple;
 
-                if operator == '?':
-                    grammar[new_sym] = ["", original_symbol]
-                elif operator == '*':
-                    grammar[new_sym] = ["", original_symbol + new_sym]
-                elif operator == '+':
-                    grammar[new_sym] = [
-                        original_symbol, original_symbol + new_sym]
+                        let exp_copy = exp.clone();
+
+                        let sub_exp = exp_copy.replacen(&extended_symbol, &new_sym, 1);
+                        expansion = Union::OnlyA(sub_exp.clone());
+                        if opts.is_empty(){
+                            grammar.get_mut(nonterminal_and_exps.0).unwrap()[i] = Union::OnlyA(sub_exp.clone());
+                        }else{
+                            grammar.get_mut(nonterminal_and_exps.0).unwrap()[i] = Union::OnlyB((sub_exp.clone(), opts.clone()));
+                        }
+                    }
+                }
+
+                if operator == "?"{
+                    grammar.insert(new_sym,vec![Union::OnlyA("".to_string()), Union::OnlyA(original_symbol.to_string())]);
+                }else if operator == "*"{
+                    grammar.insert(new_sym.clone(), vec![Union::OnlyA("".to_string()), Union::OnlyA(original_symbol.to_string() + &new_sym)]);
+                }else if operator == "+" {
+                    grammar.insert(new_sym.clone(),vec![Union::OnlyA(original_symbol.to_string()), Union::OnlyA(original_symbol.to_string() + &new_sym)]);
+                }
             }
 
         }
@@ -197,9 +199,12 @@ fn convert_ebnf_operators<'l_use>(ebnf_grammar: Grammar, ext: &Grammar<'l_use>) 
     }
 
 
-    return grammar
+    return grammar;
 }
    
+pub fn convert_ebnf_grammar<'l_use>(ebnf_grammar: & Grammar<'l_use>) -> Grammar<'l_use>{
+    return convert_ebnf_operators(&convert_ebnf_parentheses(ebnf_grammar));
+}
 
 pub fn new_symbol<'l_use>(grammar: &Grammar, symbol_name: & 'l_use str) -> String{
     match grammar.get(symbol_name){

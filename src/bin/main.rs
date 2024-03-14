@@ -42,8 +42,8 @@ fn main() {
     //print!("{term}");
 
     let mut ebnf_grammar : Grammar = HashMap::new();
-    ebnf_grammar.insert("<number>".to_string(), vec![Union::OnlyA("<integer>(.<integer>)?".to_string())]);
-    let ebnf_grammar = convert_ebnf_parentheses(&ebnf_grammar, &HashMap::new());
+    ebnf_grammar.insert("<authority>".to_string(), vec![Union::OnlyA("(<userinfo>@)?<host>(:<port>)?".to_string())]);
+    let ebnf_grammar = convert_ebnf_grammar(&ebnf_grammar);
     for it in ebnf_grammar{
         print!("{} -> [", it.0);
         for exp in it.1{
