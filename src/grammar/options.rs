@@ -1,5 +1,5 @@
 use std::collections::{HashMap};
-use crate::grammar::{Expansion, Union};
+use crate::grammar::{Expansion, Union, Grammar};
 use std::any::Any;
 
 pub type Option<'l_use>  = HashMap<&'l_use str, &'l_use dyn Any>;
@@ -24,7 +24,7 @@ pub fn exp_string<'l_use>(expansion: &Expansion<'l_use>) -> String{
     }
 }
 
-pub fn exp_opts<'l_use>(expansion: &Expansion<'l_use>) -> HashMap<&'l_use str, &'l_use dyn Any>{
+pub fn exp_opts<'l_use>(expansion: &Expansion<'l_use>) -> Option<'l_use>{
     match expansion{
         Union::OnlyA(_) =>{
             HashMap::new()
@@ -41,4 +41,38 @@ pub fn exp_opt<'l_use>(expansion: &Expansion<'l_use>, attribute: &'l_use str) ->
             Some(ref_ref.clone())
         } None=> None
     }
+}
+
+
+fn set_opts<'l_use>(grammar: &mut Grammar<'l_use>, symbol: & 'l_use str, expansion: &Expansion, opts: &Option<'l_use>) -> Result<(), &'static str>
+{
+    let expansions = &grammar[symbol];
+   
+    for i in 0..expansions.len(){
+        let exp = &expansions[i];
+        if exp_string(exp) != exp_string(expansion){
+            continue;
+        }
+
+     
+     let mut new_opts = exp_opts(exp);
+     if opts.is_empty() || new_opts.is_empty(){
+        new_opts = opts.clone();
+     }else{
+        for key_opt in opts{
+            new_opts.insert(key_opt.0, opts[key_opt.0]);
+        }
+     }
+
+     
+     if new_opts.is_empty(){
+        grammar.get_mut(symbol).unwrap()[i] = Union::OnlyA(exp_string(&exp.clone()));
+     }else{
+        grammar.get_mut(symbol).unwrap()[i] = Union::OnlyB((exp_string(exp), new_opts));
+     }
+    
+     return Ok(());
+    
+    }
+   return Err("panic!");
 }

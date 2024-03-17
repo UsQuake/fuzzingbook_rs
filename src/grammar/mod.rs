@@ -6,7 +6,7 @@ use self::options::Option;
 use lazy_static::lazy_static;
 use rand::prelude::*;
 use regex::Regex;
-use std::{any::Any, collections::HashMap};
+use std::{any::Any, collections::{HashMap,BTreeSet} };
 
 
 // #[derive(Clone)]
@@ -224,9 +224,81 @@ pub fn new_symbol<'l_use>(grammar: &Grammar, symbol_name: & 'l_use str) -> Strin
     }
 }
 
+fn def_used_nonterminals<'l_use>(grammar: &Grammar, start_symbol: &'l_use str) -> 
+(std::option::Option<BTreeSet<String>>, std::option::Option<BTreeSet<String>>){
+    let mut defined_nonterminals = BTreeSet::new();
+    let mut used_nonterminals = BTreeSet::new();
+    used_nonterminals.insert(start_symbol.to_string());
+
+for defined_nonterminal in grammar{
+
+    defined_nonterminals.insert(defined_nonterminal.0.clone());
+    let expansions = grammar.get(defined_nonterminal.0);
 
 
+    match expansions{
 
+        None => {
+            print!("{} : expansion is not a list",defined_nonterminal.0);
+            return (None, None);
+        }
+
+        Some(expansions) =>{
+            if expansions.is_empty(){
+                print!("{} : expansion is empty",defined_nonterminal.0);
+                return (None, None);
+            }
+
+            
+            for expansion in expansions{
+                let expansion = match expansion{
+                    Union::OnlyA(st) => st.clone(),
+                    Union::OnlyB(str_and_map) => str_and_map.0.clone()
+                };
+                
+                for used_nonterminal in nonterminals(&Union::OnlyA(expansion)){
+                    used_nonterminals.insert(used_nonterminal);
+                }
+            }
+
+        }
+
+    }
+    
+    
+    
+
+}
+
+
+return (Some(defined_nonterminals), Some(used_nonterminals));
+}
+def reachable_nonterminals(grammar: Grammar,
+    start_symbol: str = START_SYMBOL) -> Set[str]:
+reachable = set()
+
+def _find_reachable_nonterminals(grammar, symbol):
+nonlocal reachable
+reachable.add(symbol)
+for expansion in grammar.get(symbol, []):
+for nonterminal in nonterminals(expansion):
+if nonterminal not in reachable:
+_find_reachable_nonterminals(grammar, nonterminal)
+
+_find_reachable_nonterminals(grammar, start_symbol)
+return reachable
+
+def unreachable_nonterminals(grammar: Grammar,
+    start_symbol=START_SYMBOL) -> Set[str]:
+return grammar.keys() - reachable_nonterminals(grammar, start_symbol)
+
+def opts_used(grammar: Grammar) -> Set[str]:
+    used_opts = set()
+    for symbol in grammar:
+        for expansion in grammar[symbol]:
+            used_opts |= set(exp_opts(expansion).keys())
+    return used_opts
+    
 pub fn simple_grammar_fuzzer<'l_use>(
     rd: &mut ThreadRng,
     syntax: &Grammar,
