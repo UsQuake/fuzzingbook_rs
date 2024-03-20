@@ -4,7 +4,14 @@ use std::collections::*;
 use regex::*;
 use crate::grammar::*;
 
+    #[test]
 
+    fn test_is_valid_grammar(){
+        let mut grammars: Grammar = HashMap::new();
+        grammars.insert("<start>".to_string(), vec![Union::OnlyA("<x>".to_string())]);
+        grammars.insert( "<y>".to_string(), vec![Union::OnlyA("1".to_string())]);
+        assert!(!is_valid_grammar(&grammars, "<start>", BTreeSet::new()))
+    }
     #[test]
     fn test_parenthesized_expressions(){
         let pred = parenthesized_expressions(&Union::OnlyA("(<foo>)* (<foo><bar>)+ (+<foo>)? <integer>(.<integer>)?".to_string()));

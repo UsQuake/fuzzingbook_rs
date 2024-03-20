@@ -1,12 +1,12 @@
 mod options;
 mod test;
 pub mod str_helper;
-use self::options::Option;
+use self::options::{exp_opts, Option};
 
 use lazy_static::lazy_static;
 use rand::prelude::*;
 use regex::Regex;
-use std::{any::Any, collections::{HashMap,BTreeSet} };
+use std::{any::Any, collections::{BTreeSet, HashMap}, ops::Sub };
 
 
 // #[derive(Clone)]
@@ -27,7 +27,7 @@ lazy_static!{
     static ref RE_NONTERMINAL : Regex = Regex::new(r"(<[^<> ]*>)").unwrap();
     static ref RE_EXTENDED_NONTERMINAL : Regex = Regex::new(r"(<[^<> ]*>[?+*])").unwrap();
 }
-
+static START_SYMBOL: &'static str = "<start>";
 
 pub fn nonterminals<'l_use>(expansion: &Expansion<'l_use>) -> Vec<String> {
 
@@ -273,31 +273,120 @@ for defined_nonterminal in grammar{
 
 return (Some(defined_nonterminals), Some(used_nonterminals));
 }
-def reachable_nonterminals(grammar: Grammar,
-    start_symbol: str = START_SYMBOL) -> Set[str]:
-reachable = set()
+fn reachable_nonterminals<'l_use>(grammar: &Grammar, start_symbol: &'l_use str) -> BTreeSet<String>{
+        let mut reachable = BTreeSet::new();
+        _find_reachable_nonterminals(&mut reachable, grammar, start_symbol.to_string());
+return reachable;
+}
 
-def _find_reachable_nonterminals(grammar, symbol):
-nonlocal reachable
-reachable.add(symbol)
-for expansion in grammar.get(symbol, []):
-for nonterminal in nonterminals(expansion):
-if nonterminal not in reachable:
-_find_reachable_nonterminals(grammar, nonterminal)
 
-_find_reachable_nonterminals(grammar, start_symbol)
-return reachable
+fn _find_reachable_nonterminals<'l_use>(reachable: &mut BTreeSet<String>,  grammar: &Grammar<'l_use>, symbol: String){
+    reachable.insert(symbol.to_string());
+    let exps = match grammar.get(&symbol)
+    {
+        None => Vec::new(),
+        Some(expansions) => expansions.clone()
+    };
+    for expansion in exps{
+        for nonterminal in nonterminals(&expansion){
+            if !reachable.contains(&nonterminal){
+                _find_reachable_nonterminals(reachable, grammar, nonterminal);
+            }
 
-def unreachable_nonterminals(grammar: Grammar,
-    start_symbol=START_SYMBOL) -> Set[str]:
-return grammar.keys() - reachable_nonterminals(grammar, start_symbol)
+        }
+    }
+}
 
-def opts_used(grammar: Grammar) -> Set[str]:
-    used_opts = set()
-    for symbol in grammar:
-        for expansion in grammar[symbol]:
-            used_opts |= set(exp_opts(expansion).keys())
-    return used_opts
+
+fn unreachable_nonterminals<'l_use>(grammar: &Grammar<'l_use>, start_symbol: &'l_use str) -> BTreeSet<String>{
+    let grammar_keys_set:BTreeSet<String> = grammar.keys().map(|m| m.to_string()).into_iter().collect();
+    let reachable_nonterms_set = reachable_nonterminals(grammar, start_symbol);
+    return &grammar_keys_set - &reachable_nonterms_set;
+}
+
+
+fn opts_used<'l_use>(grammar: &Grammar<'l_use>) -> BTreeSet<String>{
+    let mut used_opts = BTreeSet::new();
+    for symbol in grammar.keys(){
+        for expansion in grammar.get(symbol).unwrap(){
+            used_opts.append(&mut exp_opts(expansion).keys().map(|m| m.to_string()).into_iter().collect());
+        }
+    }
+    return used_opts;
+}
+fn is_valid_grammar<'l_use>(grammar: &Grammar, start_symbol: &'l_use str, supported_opts: BTreeSet<String>) -> bool{
+    let (defined_nonterminals, used_nonterminals) = def_used_nonterminals(grammar, start_symbol);
+    if defined_nonterminals.is_none() || used_nonterminals.is_none(){
+        return false;
+    }
+    let defined_nonterminals = defined_nonterminals.unwrap();
+    let mut used_nonterminals = used_nonterminals.unwrap();
+    
+    if grammar.contains_key(START_SYMBOL){
+        used_nonterminals.insert(START_SYMBOL.to_string());
+    }
+  
+    
+    for unused_nonterminal in &defined_nonterminals - &used_nonterminals{
+        println!("{unused_nonterminal}: defined, but not used. Consider applying trim_grammar() on the grammar");
+    }
+    
+    for undefined_nonterminal in &used_nonterminals - &defined_nonterminals{
+        println!("{undefined_nonterminal}: used, but not defined")
+    }
+
+    
+
+    let mut unreachable = unreachable_nonterminals(grammar, start_symbol);
+    let mut msg_start_symbol = start_symbol.to_string();
+    
+    if grammar.contains_key(START_SYMBOL){
+        unreachable = &unreachable - &reachable_nonterminals(grammar, START_SYMBOL);
+    }
+
+    if start_symbol != START_SYMBOL{
+        msg_start_symbol = msg_start_symbol + " or " + START_SYMBOL;
+    }
+  
+    
+    for unreachable_nonterminal in &unreachable{
+       println!("{unreachable_nonterminal}: unreachable from {msg_start_symbol}. Consider applying trim_grammar() on the grammar");
+    }
+    
+    
+    let mut used_but_not_supported_opts = BTreeSet::new();
+    if supported_opts.len() > 0{
+        used_but_not_supported_opts = opts_used(&grammar).difference(&supported_opts).cloned().collect();
+    }
+
+    for opt in used_but_not_supported_opts{
+        println!("warning: option {opt} is not supported");
+    }
+
+    
+    return used_nonterminals == defined_nonterminals && unreachable.len() == 0
+}
+
+fn trim_grammar<'l_use>(grammar: &Grammar<'l_use>, start_symbol: & 'l_use str) -> Grammar<'l_use>{
+    let mut new_grammar = extend_grammar(&grammar, &HashMap::new());
+    let (defined_nonterminals, used_nonterminals) = def_used_nonterminals(grammar, start_symbol);
+
+    if defined_nonterminals.is_none() || used_nonterminals.is_none(){
+        return new_grammar;
+    }
+    let defined_nonterminals = defined_nonterminals.unwrap();
+    let used_nonterminals = used_nonterminals.unwrap();
+
+    let unused = &defined_nonterminals - &used_nonterminals;
+    let unreachable = unreachable_nonterminals(grammar, start_symbol);
+    for nonterminal in unused.intersection(&unreachable){
+        new_grammar.remove(nonterminal);
+    }
+     
+
+    return new_grammar;
+}
+
     
 pub fn simple_grammar_fuzzer<'l_use>(
     rd: &mut ThreadRng,
