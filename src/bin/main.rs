@@ -56,4 +56,6 @@ fn main() {
         println!("]");
     }
 
+    use fuzzingbook_rs::grammar_fuzzer::dot_escape;
+    println!("{}", dot_escape(&"\x01".to_string(), Some(false)) );
 }
