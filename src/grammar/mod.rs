@@ -31,6 +31,9 @@ lazy_static!{
 }
 static START_SYMBOL: &'static str = "<start>";
 
+pub fn is_nonterminal<'l_use>(symbol: &'l_use str) -> bool{
+    return RE_NONTERMINAL.is_match(symbol);
+}
 pub fn nonterminals<'l_use>(expansion: &Expansion<'l_use>) -> Vec<String> {
 
    let expansion = match expansion{
