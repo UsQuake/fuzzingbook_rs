@@ -82,7 +82,7 @@ impl<'l_use> GrammarsFuzzer<'l_use>{
         }
     }
 
-    pub fn choose_node_expansion(&self, rd: &mut ThreadRng,node: DerivationTree,
+    pub fn choose_node_expansion(&self, rd: &mut ThreadRng,node: &DerivationTree,
         children_alternatives: Vec<Vec<DerivationTree>>) -> usize{
             return rd.gen_range(0..children_alternatives.len());
         }
@@ -92,7 +92,19 @@ impl<'l_use> GrammarsFuzzer<'l_use>{
     pub fn expansion_to_children(&self, expansion: &Expansion<'l_use>) -> Vec<DerivationTree>{
         return expansion_to_children(expansion);
     }
-    pub fn expand_node_randomly(&self, node: &DerivationTree) -> DerivationTree{
+
+    pub fn expand_node(&self, rd: &mut ThreadRng, node: &DerivationTree) -> DerivationTree{
+        return self.expand_node_randomly(rd, node);
+    }
+
+
+
+fn process_chosen_children(self,
+    chosen_children: Vec<DerivationTree>,
+    expansion: Expansion) -> Vec<DerivationTree>{
+        return chosen_children;
+    }
+    pub fn expand_node_randomly(&self, rd: &mut ThreadRng, node: &DerivationTree) -> DerivationTree{
         let (symbol, children) = (node.symbol, node.children);
         assert!(children.is_none());
         
@@ -105,30 +117,22 @@ impl<'l_use> GrammarsFuzzer<'l_use>{
         }
  
         let expansions = self.grammar[&symbol];
-        children_alternatives: List[List[DerivationTree]] = [
-            self.expansion_to_children(expansion) for expansion in expansions
-        ]
+        let children_alternatives: Vec<Vec<DerivationTree>> = expansions.iter().map(|exp| {self.expansion_to_children(exp)}).collect();
+
         
-        index = self.choose_node_expansion(node, children_alternatives)
-        chosen_children = children_alternatives[index]
+        let index = self.choose_node_expansion(&mut rd, node, children_alternatives);
+        let chosen_children = children_alternatives[index];
         
         chosen_children = self.process_chosen_children(chosen_children,
-                                                       expansions[index])
+                                                       expansions[index]);
         
-        return (symbol, chosen_children)
+        return DerivationTree{symbol:symbol, children: Some(chosen_children)};
     }
 
 
 
-def expand_node(self, node: DerivationTree) -> DerivationTree:
-return self.expand_node_randomly(node)
 
 
-def process_chosen_children(self,
-    chosen_children: List[DerivationTree],
-    expansion: Expansion) -> List[DerivationTree]:
-"""Process children after selection.  By default, does nothing."""
-return chosen_children
 }
 
 
