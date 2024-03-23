@@ -1,6 +1,11 @@
+use std::collections::BTreeSet;
+
 use lazy_static::lazy_static;
 use regex::Regex;
+use rand::prelude::*;
 use crate::grammar::*;
+
+use self::options::exp_string;
 
 mod test;
 
@@ -57,42 +62,89 @@ impl<'l_use> GrammarsFuzzer<'l_use>{
             log: log
         }
     }
-    def check_grammar(self) -> None:
-    """Check the grammar passed"""
-    assert self.start_symbol in self.grammar
-    assert is_valid_grammar(
-        self.grammar,
-        start_symbol=self.start_symbol,
-        supported_opts=self.supported_opts())
+    pub fn check_grammar(&self){ 
+        assert!(self.grammar.contains_key(self.start_symbol));
+        assert!(is_valid_grammar(
+            &self.grammar,
+            self.start_symbol,
+            self.supported_opts()));
+    }
 
-def supported_opts(self) -> Set[str]:
-    """Set of supported options. To be overloaded in subclasses."""
-    return set()  # We don't support specific options
 
-    def init_tree(self) -> DerivationTree:
-    return (self.start_symbol, None)
+    pub fn supported_opts(&self) -> BTreeSet<String>{
+        return BTreeSet::new();
+    }
 
-    def choose_node_expansion(self, node: DerivationTree,
-        children_alternatives: List[List[DerivationTree]]) -> int:
-"""Return index of expansion in `children_alternatives` to be selected.
-'children_alternatives`: a list of possible children for `node`.
-Defaults to random. To be overloaded in subclasses."""
-return random.randrange(0, len(children_alternatives))
+    pub fn init_tree(&self) -> DerivationTree{
+        DerivationTree{
+            symbol: self.start_symbol.to_string(),
+            children: None
+        }
+    }
+
+    pub fn choose_node_expansion(&self, rd: &mut ThreadRng,node: DerivationTree,
+        children_alternatives: Vec<Vec<DerivationTree>>) -> usize{
+            return rd.gen_range(0..children_alternatives.len());
+        }
+
+
+
+    pub fn expansion_to_children(&self, expansion: &Expansion<'l_use>) -> Vec<DerivationTree>{
+        return expansion_to_children(expansion);
+    }
+    pub fn expand_node_randomly(&self, node: &DerivationTree) -> DerivationTree{
+        let (symbol, children) = (node.symbol, node.children);
+        assert!(children.is_none());
+        
+        match self.log{
+            Union::OnlyA(should_log) =>{
+                if should_log{
+                    println!("Expanding {} randomly", all_terminals(node));
+                }
+            }, Union::OnlyB(_)=>{}
+        }
+ 
+        let expansions = self.grammar[&symbol];
+        children_alternatives: List[List[DerivationTree]] = [
+            self.expansion_to_children(expansion) for expansion in expansions
+        ]
+        
+        index = self.choose_node_expansion(node, children_alternatives)
+        chosen_children = children_alternatives[index]
+        
+        chosen_children = self.process_chosen_children(chosen_children,
+                                                       expansions[index])
+        
+        return (symbol, chosen_children)
+    }
+
+
+
+def expand_node(self, node: DerivationTree) -> DerivationTree:
+return self.expand_node_randomly(node)
+
+
+def process_chosen_children(self,
+    chosen_children: List[DerivationTree],
+    expansion: Expansion) -> List[DerivationTree]:
+"""Process children after selection.  By default, does nothing."""
+return chosen_children
 }
-def expansion_to_children(expansion: Expansion) -> List[DerivationTree]:
-    # print("Converting " + repr(expansion))
-    # strings contains all substrings -- both terminals and nonterminals such
-    # that ''.join(strings) == expansion
 
-    expansion = exp_string(expansion)
-    assert isinstance(expansion, str)
 
-    if expansion == "":  # Special case: epsilon expansion
-        return [("", [])]
+fn expansion_to_children<'l_use>(expansion: &Expansion<'l_use>) -> Vec<DerivationTree>{
+    let expansion = exp_string(expansion);
 
-    strings = re.split(RE_NONTERMINAL, expansion)
+    if expansion == ""{
+        return vec![DerivationTree{symbol: "".to_string(), children:Some(Vec::new())}];
+    }
+
+    let strings = RE_NONTERMINAL.split(expansion);
     return [(s, None) if is_nonterminal(s) else (s, [])
             for s in strings if len(s) > 0]
+}
+
+
 pub fn tree_to_string(tree: &DerivationTree)-> String{
     let (symbol, children) = (tree.symbol.clone(), tree.children.clone());
 
@@ -109,6 +161,7 @@ pub fn tree_to_string(tree: &DerivationTree)-> String{
         }
     }
      
+
 }
 
 pub fn all_terminals(tree: &DerivationTree) -> String{

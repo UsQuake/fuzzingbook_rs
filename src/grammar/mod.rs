@@ -1,4 +1,4 @@
-mod options;
+pub mod options;
 mod test;
 pub mod str_helper;
 use self::options::{exp_opts, Option};
@@ -25,9 +25,9 @@ pub type Grammar<'l_use> = HashMap<String, Vec<Expansion<'l_use>>>;
 
 
 lazy_static!{
-    static ref RE_PARENTHESIZED_EXPR : Regex = Regex::new(r"\([^()]*\)[?+*]").unwrap();
-    static ref RE_NONTERMINAL : Regex = Regex::new(r"(<[^<> ]*>)").unwrap();
-    static ref RE_EXTENDED_NONTERMINAL : Regex = Regex::new(r"(<[^<> ]*>[?+*])").unwrap();
+    pub static ref RE_PARENTHESIZED_EXPR : Regex = Regex::new(r"\([^()]*\)[?+*]").unwrap();
+    pub static ref RE_NONTERMINAL : Regex = Regex::new(r"(<[^<> ]*>)").unwrap();
+    pub static ref RE_EXTENDED_NONTERMINAL : Regex = Regex::new(r"(<[^<> ]*>[?+*])").unwrap();
 }
 static START_SYMBOL: &'static str = "<start>";
 
@@ -319,7 +319,7 @@ fn opts_used<'l_use>(grammar: &Grammar<'l_use>) -> BTreeSet<String>{
     }
     return used_opts;
 }
-fn is_valid_grammar<'l_use>(grammar: &Grammar, start_symbol: &'l_use str, supported_opts: BTreeSet<String>) -> bool{
+pub fn is_valid_grammar<'l_use>(grammar: &Grammar, start_symbol: &'l_use str, supported_opts: BTreeSet<String>) -> bool{
     let (defined_nonterminals, used_nonterminals) = def_used_nonterminals(grammar, start_symbol);
     if defined_nonterminals.is_none() || used_nonterminals.is_none(){
         return false;
