@@ -1,9 +1,9 @@
 #[cfg(test)]
-mod tests{
+mod tests {
     use crate::grammar_fuzzer::*;
     #[test]
 
-    fn test_is_valid_grammar(){
+    fn test_is_valid_grammar() {
         assert!(dot_escape(&"hello".to_string(), None) == "hello");
         assert!(dot_escape(&"<hello>, world".to_string(), None) == "\\<hello\\>\\, world");
         assert!(dot_escape(&"\\n".to_string(), None) == "\\\\n");
