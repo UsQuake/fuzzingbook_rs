@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, f32::EPSILON};
 
 use crate::grammar::*;
 use lazy_static::lazy_static;
@@ -13,6 +13,19 @@ mod test;
 pub struct DerivationTree {
     symbol: String,
     children: std::option::Option<Vec<Box<DerivationTree>>>,
+}
+
+enum InfinitableF64{
+    Defined(f64), Infined
+}
+impl PartialEq for DerivationTree{
+    fn eq(&self, rhs: &DerivationTree) -> bool { 
+        if self.symbol == rhs.symbol{
+            return false;
+        }
+
+        return self.children == rhs.children; 
+    }
 }
 lazy_static! {
     static ref DERIVATION_TREE: DerivationTree = DerivationTree {
@@ -145,6 +158,126 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             children: Some(chosen_children),
         };
     }
+
+    pub fn possible_expansions(&self, node: &DerivationTree) -> usize{
+        let (symbol, children) = (&node.symbol, node.children.clone());
+        if children.is_none(){
+            return 1;
+        }
+        let children = children.unwrap();
+        return children.iter().fold(0, |acc, child_node| acc + self.possible_expansions(child_node));
+    }
+
+    pub fn any_possible_expansions(&self, node: &DerivationTree) -> bool{
+        let (symbol, children) = (&node.symbol, node.children.clone());
+        if children.is_none(){
+            return true;
+        }
+        let children = children.unwrap();
+        return children.iter().any(|child| self.any_possible_expansions(child))
+    }
+
+
+    pub fn choose_tree_expansion(&self,
+        rd: &mut ThreadRng,
+        tree: &DerivationTree,
+        children: &Vec<Box<DerivationTree>>) -> usize{
+            return rd.gen_range(0..children.len())
+        }
+
+pub fn expand_tree_once(&self,  rd: &mut ThreadRng,tree: &DerivationTree) -> DerivationTree{
+
+    let mut tree = tree.clone();
+    let (_symbol, children) = (&tree.symbol, &tree.children);
+    if children.is_none(){
+        return self.expand_node(rd, &tree);
+    }
+    let mut updated_children = children.clone().unwrap();
+    let mut expandable_children:Vec<Box<DerivationTree>> = updated_children
+    .iter()
+    .filter(|refref_child| self.any_possible_expansions(refref_child))
+    .map(|refref_child| refref_child.clone())
+    .collect();
+
+    let index_map: Vec<usize> = updated_children
+    .par_iter()
+    .enumerate()
+    .filter(|idx_child| 
+        expandable_children
+        .par_iter()
+        .find_any(|expandable_child| **expandable_child == *idx_child.1)
+        .is_some())
+     .map(|idx_child| idx_child.0)
+     .collect();
+    
+    let child_to_be_expanded = self.choose_tree_expansion(rd, &tree, &expandable_children);
+    
+    updated_children[index_map[child_to_be_expanded]] = Box::new(self.expand_tree_once(rd, &mut expandable_children[child_to_be_expanded]));
+    tree.children = Some(updated_children);
+    return tree;
+}
+pub fn symbol_cost(&self, symbol: &String, seen: &BTreeSet<String>) -> f64{
+    let expansions = &self.grammar[symbol];
+    return expansions
+    .iter()
+    .map(|expansion| self.expansion_cost(&expansion, &seen))
+    .reduce(f64::min)
+    .unwrap();
+}
+
+
+pub fn expansion_cost(&self, expansion: &Expansion, seen: &BTreeSet<String>) -> f64{
+    let symbols = nonterminals(expansion);
+    if symbols.len() == 0{
+        return 1.0;
+    }
+
+    if symbols.iter().any(|s| seen.contains(s)){
+        return f64::INFINITY;
+    }
+    
+    return symbols
+    .iter()
+    .map(|sym| self.symbol_cost(&sym, seen))
+    .sum();
+}
+
+pub fn expand_node_by_cost(&self, node: &DerivationTree, choose: fn(&[f64]) -> f64) -> DerivationTree{
+        let (symbol, children) = (node.symbol, node.children);
+        assert!(children.is_none());
+        
+        let expansions = self.grammar[&symbol];
+        
+        
+        let children_alternatives_with_cost: Vec<_> = expansions.iter().map(|exp|
+            (self.expansion_to_children(exp),
+            self.expansion_cost(exp, &BTreeSet::from([symbol])),
+            exp)).collect();
+        
+        let costs: Vec<_> = children_alternatives_with_cost
+        .iter()
+        .map(|(_, cost, _)| cost).cloned()
+        .collect();
+
+        let chosen_cost = choose(&costs);
+        let children_with_chosen_cost = [child for (child, child_cost, _) 
+                     in children_alternatives_with_cost
+                     if child_cost == chosen_cost]
+        let expansion_with_chosen_cost = [expansion for (_, child_cost, expansion)
+                      in children_alternatives_with_cost
+                      if child_cost == chosen_cost]
+        
+        index = self.choose_node_expansion(node, children_with_chosen_cost)
+        
+        let mut chosen_children = children_with_chosen_cost[index];
+        let chosen_expansion = expansion_with_chosen_cost[index];
+        chosen_children = self.process_chosen_children(&chosen_children, &chosen_expansion);
+        
+        return DerivationTree{symbol:symbol.clone(),children:chosen_children}
+}
+
+
+
 }
 
 fn expansion_to_children<'l_use>(expansion: &Expansion<'l_use>) -> Vec<DerivationTree> {
