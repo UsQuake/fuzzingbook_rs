@@ -4,7 +4,7 @@ use crate::grammar::*;
 use lazy_static::lazy_static;
 use rand::prelude::*;
 use regex::Regex;
-
+use rayon::prelude::*;
 use self::options::exp_string;
 
 mod test;
@@ -108,7 +108,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         expansion: &Expansion,
     ) -> Vec<Box<DerivationTree>> {
         return chosen_children
-            .iter()
+            .par_iter()
             .map(|subtree| Box::new(subtree.clone()))
             .collect();
     }
@@ -159,12 +159,12 @@ fn expansion_to_children<'l_use>(expansion: &Expansion<'l_use>) -> Vec<Derivatio
 
     let strings: Vec<&str> = RE_NONTERMINAL.split(&expansion).collect();
     let non_empty_strings: Vec<String> = strings
-        .iter()
+        .par_iter()
         .filter(|s| s.len() > 0)
         .map(|s| s.to_string())
         .collect();
     let result = non_empty_strings
-        .iter()
+        .par_iter()
         .map(|s| {
             if is_nonterminal(s) {
                 DerivationTree {
@@ -189,7 +189,7 @@ pub fn tree_to_string(tree: &DerivationTree) -> String {
     if children.is_some() {
         let children = children.unwrap();
         let nodes: Vec<String> = children
-            .iter()
+            .par_iter()
             .map(|nonterm_node| tree_to_string(&nonterm_node))
             .collect();
         return nodes.join("");
@@ -213,7 +213,7 @@ pub fn all_terminals(tree: &DerivationTree) -> String {
         return symbol.clone();
     }
     let terminals: Vec<String> = children
-        .iter()
+        .par_iter()
         .map(|nonterm_node| all_terminals(&nonterm_node))
         .collect();
     return terminals.join("");
