@@ -57,7 +57,8 @@ pub struct GrammarsFuzzer<'l_use> {
     max_nonterminals: usize,   //= 10,
     disp: bool,                // = False,
     log: Union<bool, usize>,
-    expand_node: std::option::Option<fn (&Self, &mut ThreadRng, &DerivationTree) -> DerivationTree>
+    expand_node: std::option::Option<fn (&Self, &mut ThreadRng, &DerivationTree) -> DerivationTree>,
+    derivation_tree: std::option::Option<DerivationTree>
 }
 
 impl<'l_use> GrammarsFuzzer<'l_use> {
@@ -77,7 +78,8 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             max_nonterminals: max_nonterminals,
             disp: disp,
             log: log,
-            expand_node: None
+            expand_node: None,
+            derivation_tree: None
         }
     }
     pub fn check_grammar(&self) {
@@ -357,8 +359,24 @@ pub fn expand_tree(&mut self, rd: &mut ThreadRng,tree: &DerivationTree) -> Deriv
     
     return tree
 }
+pub fn fuzz_tree(&mut self, rd: &mut ThreadRng) -> DerivationTree{
+    let mut tree = self.init_tree();
+    tree = self.expand_tree(rd, &tree);
+    match self.log{
+        Union::OnlyA(should_log) =>{
+            if should_log{
+                println!("{}",all_terminals(&tree));
+        }},
+        Union::OnlyB(_)=>{}
+    }
+return tree
+}
 
-
+pub fn fuzz(&mut self, rd: &mut ThreadRng) -> String{
+    let fuzzed_tree = self.fuzz_tree(rd);
+    self.derivation_tree = Some(fuzzed_tree.clone());
+    return all_terminals(&fuzzed_tree);
+}
 
 }
 
