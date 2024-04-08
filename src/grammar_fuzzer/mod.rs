@@ -242,16 +242,16 @@ pub fn expansion_cost(&self, expansion: &Expansion, seen: &BTreeSet<String>) -> 
     .sum();
 }
 
-pub fn expand_node_by_cost(&self, node: &DerivationTree, choose: fn(&[f64]) -> f64) -> DerivationTree{
-        let (symbol, children) = (node.symbol, node.children);
+pub fn expand_node_by_cost(&self, rd: &mut ThreadRng, node: &DerivationTree, choose: fn(&[f64]) -> f64) -> DerivationTree{
+        let (symbol, children) = (node.symbol.clone(), &node.children);
         assert!(children.is_none());
         
-        let expansions = self.grammar[&symbol];
+        let expansions = &self.grammar[&symbol];
         
         
         let children_alternatives_with_cost: Vec<_> = expansions.iter().map(|exp|
             (self.expansion_to_children(exp),
-            self.expansion_cost(exp, &BTreeSet::from([symbol])),
+            self.expansion_cost(exp, &BTreeSet::from([symbol.clone()])),
             exp)).collect();
         
         let costs: Vec<_> = children_alternatives_with_cost
@@ -260,22 +260,46 @@ pub fn expand_node_by_cost(&self, node: &DerivationTree, choose: fn(&[f64]) -> f
         .collect();
 
         let chosen_cost = choose(&costs);
-        let children_with_chosen_cost = [child for (child, child_cost, _) 
-                     in children_alternatives_with_cost
-                     if child_cost == chosen_cost]
-        let expansion_with_chosen_cost = [expansion for (_, child_cost, expansion)
-                      in children_alternatives_with_cost
-                      if child_cost == chosen_cost]
+        let children_alternatives_with_chosen_cost:Vec<_> = children_alternatives_with_cost
+        .iter()
+        .filter(|(_, child_cost, _)| *child_cost == chosen_cost)
+        .collect();
+
+        let children_with_chosen_cost:Vec<Vec<_>> = 
+        children_alternatives_with_chosen_cost
+        .iter()
+        .map(|(child, _, _)| child.clone())
+        .collect();
+
+        let expansion_with_chosen_cost:Vec<_> = children_alternatives_with_chosen_cost
+        .iter()
+        .map(|(_, _, expansion)| expansion)
+        .collect();
         
-        index = self.choose_node_expansion(node, children_with_chosen_cost)
+        let index = self.choose_node_expansion(rd, node, &children_with_chosen_cost);
         
-        let mut chosen_children = children_with_chosen_cost[index];
+        let chosen_children = &children_with_chosen_cost[index];
+
         let chosen_expansion = expansion_with_chosen_cost[index];
-        chosen_children = self.process_chosen_children(&chosen_children, &chosen_expansion);
+        let chosen_children = self.process_chosen_children(&chosen_children, chosen_expansion);
         
-        return DerivationTree{symbol:symbol.clone(),children:chosen_children}
+        return DerivationTree{symbol:symbol,children:Some(chosen_children)}
 }
 
+def expand_node_min_cost(self, node: DerivationTree) -> DerivationTree:
+if self.log:
+    print("Expanding", all_terminals(node), "at minimum cost")
+
+return self.expand_node_by_cost(node, min)
+
+def expand_node(self, node: DerivationTree) -> DerivationTree:
+return self.expand_node_min_cost(node)
+
+def expand_node_max_cost(self, node: DerivationTree) -> DerivationTree:
+if self.log:
+    print("Expanding", all_terminals(node), "at maximum cost")
+
+return self.expand_node_by_cost(node, max)
 
 
 }
