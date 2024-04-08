@@ -57,6 +57,7 @@ pub struct GrammarsFuzzer<'l_use> {
     max_nonterminals: usize,   //= 10,
     disp: bool,                // = False,
     log: Union<bool, usize>,
+    expand_node: std::option::Option<fn (&Self, &mut ThreadRng, &DerivationTree) -> DerivationTree>
 }
 
 impl<'l_use> GrammarsFuzzer<'l_use> {
@@ -76,6 +77,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             max_nonterminals: max_nonterminals,
             disp: disp,
             log: log,
+            expand_node: None
         }
     }
     pub fn check_grammar(&self) {
@@ -109,10 +111,6 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
 
     pub fn expansion_to_children(&self, expansion: &Expansion<'l_use>) -> Vec<DerivationTree> {
         return expansion_to_children(expansion);
-    }
-
-    pub fn expand_node(&self, rd: &mut ThreadRng, node: &DerivationTree) -> DerivationTree {
-        return self.expand_node_randomly(rd, node);
     }
 
     fn process_chosen_children(
@@ -190,7 +188,7 @@ pub fn expand_tree_once(&self,  rd: &mut ThreadRng,tree: &DerivationTree) -> Der
     let mut tree = tree.clone();
     let (_symbol, children) = (&tree.symbol, &tree.children);
     if children.is_none(){
-        return self.expand_node(rd, &tree);
+        return self.expand_node.unwrap()(&self, rd, &tree);
     }
     let mut updated_children = children.clone().unwrap();
     let mut expandable_children:Vec<Box<DerivationTree>> = updated_children
@@ -242,7 +240,7 @@ pub fn expansion_cost(&self, expansion: &Expansion, seen: &BTreeSet<String>) -> 
     .sum();
 }
 
-pub fn expand_node_by_cost(&self, rd: &mut ThreadRng, node: &DerivationTree, choose: fn(&[f64]) -> f64) -> DerivationTree{
+pub fn expand_node_by_cost(&self, rd: &mut ThreadRng, node: &DerivationTree, choose: fn(f64, f64) -> f64) -> DerivationTree{
         let (symbol, children) = (node.symbol.clone(), &node.children);
         assert!(children.is_none());
         
@@ -259,7 +257,10 @@ pub fn expand_node_by_cost(&self, rd: &mut ThreadRng, node: &DerivationTree, cho
         .map(|(_, cost, _)| cost).cloned()
         .collect();
 
-        let chosen_cost = choose(&costs);
+        let chosen_cost = costs
+        .iter()
+        .fold(0.0, |chosen_cost, x| choose(chosen_cost, *x));
+
         let children_alternatives_with_chosen_cost:Vec<_> = children_alternatives_with_cost
         .iter()
         .filter(|(_, child_cost, _)| *child_cost == chosen_cost)
@@ -286,20 +287,77 @@ pub fn expand_node_by_cost(&self, rd: &mut ThreadRng, node: &DerivationTree, cho
         return DerivationTree{symbol:symbol,children:Some(chosen_children)}
 }
 
-def expand_node_min_cost(self, node: DerivationTree) -> DerivationTree:
-if self.log:
-    print("Expanding", all_terminals(node), "at minimum cost")
+pub fn expand_node_min_cost(&self, rd: &mut ThreadRng, node: &DerivationTree) -> DerivationTree{
+    match self.log{
+        Union::OnlyA(should_log) => {
+            if should_log{
+                println!("Expanding {} at minimum cost", all_terminals(node));
+            }
+        }, Union::OnlyB(_) =>{}
+    }
+    self.expand_node_by_cost(rd, node, f64::min)
+}
 
-return self.expand_node_by_cost(node, min)
 
-def expand_node(self, node: DerivationTree) -> DerivationTree:
-return self.expand_node_min_cost(node)
+//pub fn expand_node(&self, rd: &mut ThreadRng, node: &DerivationTree) -> DerivationTree{
+    //self.expand_node_min_cost(rd, node)
+//}
 
-def expand_node_max_cost(self, node: DerivationTree) -> DerivationTree:
-if self.log:
-    print("Expanding", all_terminals(node), "at maximum cost")
 
-return self.expand_node_by_cost(node, max)
+pub fn expand_node_max_cost(&self, rd: &mut ThreadRng, node: &DerivationTree) -> DerivationTree{
+    match self.log{
+        Union::OnlyA(should_log) => {
+            if should_log{
+                println!("Expanding {} at maximum cost", all_terminals(node));
+            }
+        }, Union::OnlyB(_) =>{}
+    }
+    self.expand_node_by_cost(rd, node, f64::max)
+}
+
+pub fn log_tree(&self, tree: &DerivationTree){
+    match self.log{
+        Union::OnlyA(should_log) => {
+            if should_log{
+                println!("Tree:{}", all_terminals(tree));
+            }
+        }, Union::OnlyB(_) =>{}
+    }
+}
+
+
+fn expand_tree_with_strategy(&mut self, rd: &mut ThreadRng,
+                            tree: &DerivationTree,
+                          expand_node_method: fn(&Self, &mut ThreadRng, &DerivationTree) -> DerivationTree,
+                          limit: std::option::Option<usize> // = None
+                           )-> DerivationTree{
+let mut tree = tree.clone();
+self.expand_node = Some(expand_node_method);
+while (limit.is_none()
+        || self.possible_expansions(&tree) < limit.unwrap())
+        && self.any_possible_expansions(&tree){
+            tree = self.expand_tree_once(rd, &tree);
+            self.log_tree(&tree)
+        }
+
+return tree;
+}
+
+pub fn expand_tree(&mut self, rd: &mut ThreadRng,tree: &DerivationTree) -> DerivationTree{
+    self.log_tree(tree);
+    let mut tree = tree.clone();
+    tree = self.expand_tree_with_strategy(
+        rd, &tree, Self::expand_node_max_cost, Some(self.min_nonterminals));
+    tree = self.expand_tree_with_strategy(
+        rd, &tree, Self::expand_node_randomly, Some(self.max_nonterminals));
+    tree = self.expand_tree_with_strategy(
+        rd, &tree, Self::expand_node_min_cost, None);
+    
+    assert!(self.possible_expansions(&tree) == 0);
+    
+    return tree
+}
+
 
 
 }
