@@ -3,9 +3,9 @@ pub mod str_helper;
 mod test;
 use self::options::{exp_opts, Option};
 
-use rayon::prelude::*;
 use lazy_static::lazy_static;
 use rand::prelude::*;
+use rayon::prelude::*;
 use regex::Regex;
 use std::{
     any::Any,
