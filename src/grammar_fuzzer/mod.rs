@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, f32::EPSILON};
+use std::{collections::{BTreeSet, HashSet}, f32::EPSILON};
 
 use self::options::exp_string;
 use crate::grammar::*;
@@ -11,21 +11,13 @@ mod test;
 
 #[derive(Clone)]
 pub struct DerivationTree {
-    symbol: String,
-    children: std::option::Option<Vec<Box<DerivationTree>>>,
+    pub symbol: String,
+    pub children: std::option::Option<Vec<Box<DerivationTree>>>,
 }
 
-enum InfinitableF64 {
-    Defined(f64),
-    Infined,
-}
 impl PartialEq for DerivationTree {
     fn eq(&self, rhs: &DerivationTree) -> bool {
-        if self.symbol == rhs.symbol {
-            return false;
-        }
-
-        return self.children == rhs.children;
+        return self.symbol == rhs.symbol && self.children == rhs.children;
     }
 }
 lazy_static! {
@@ -56,7 +48,6 @@ pub struct GrammarsFuzzer<'l_use> {
     start_symbol: &'l_use str, //= START_SYMBOL
     min_nonterminals: usize,   //= 0,
     max_nonterminals: usize,   //= 10,
-    disp: bool,                // = False,
     log: Union<bool, usize>,
     expand_node: std::option::Option<fn(&Self, &mut ThreadRng, &DerivationTree) -> DerivationTree>,
     derivation_tree: std::option::Option<DerivationTree>,
@@ -68,7 +59,6 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         start_symbol: &'l_use str, //= START_SYMBOL
         min_nonterminals: usize,   //= 0,
         max_nonterminals: usize,   //= 10,
-        disp: bool,                // = False,
         log: Union<bool, usize>,
     ) -> Self {
         //= False
@@ -77,7 +67,6 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             start_symbol: start_symbol,
             min_nonterminals: min_nonterminals,
             max_nonterminals: max_nonterminals,
-            disp: disp,
             log: log,
             expand_node: None,
             derivation_tree: None,
@@ -144,6 +133,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         }
 
         let expansions = &self.grammar[&symbol];
+
         let children_alternatives: Vec<Vec<DerivationTree>> = expansions
             .iter()
             .map(|exp| self.expansion_to_children(exp))
@@ -198,7 +188,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             return self.expand_node.unwrap()(&self, rd, &tree);
         }
         let mut updated_children = children.clone().unwrap();
-        let mut expandable_children: Vec<Box<DerivationTree>> = updated_children
+        let expandable_children: Vec<Box<DerivationTree>> = updated_children
             .iter()
             .filter(|refref_child| self.any_possible_expansions(refref_child))
             .map(|refref_child| refref_child.clone())
@@ -207,32 +197,31 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         let index_map: Vec<usize> = updated_children
             .par_iter()
             .enumerate()
-            .filter(|idx_child| {
+            .filter(|(_,c)| {
                 expandable_children
                     .par_iter()
-                    .find_any(|expandable_child| **expandable_child == *idx_child.1)
+                    .find_any(|expandable_child| **expandable_child == **c)
                     .is_some()
             })
-            .map(|idx_child| idx_child.0)
+            .map(|(i, _)| i)
             .collect();
 
         let child_to_be_expanded = self.choose_tree_expansion(rd, &tree, &expandable_children);
-
         updated_children[index_map[child_to_be_expanded]] =
-            Box::new(self.expand_tree_once(rd, &mut expandable_children[child_to_be_expanded]));
+            Box::new(self.expand_tree_once(rd, &expandable_children[child_to_be_expanded]));
         tree.children = Some(updated_children);
         return tree;
     }
-    pub fn symbol_cost(&self, symbol: &String, seen: &BTreeSet<String>) -> f64 {
+    pub fn symbol_cost(&self, symbol: &String, seen: &HashSet<String>) -> f64 {
         let expansions = &self.grammar[symbol];
-        return expansions
+        expansions
             .iter()
-            .map(|expansion| self.expansion_cost(&expansion, &seen))
+            .map(|expansion| self.expansion_cost(&expansion, seen | &HashSet::from([symbol.clone()])))
             .reduce(f64::min)
-            .unwrap();
+            .unwrap()
     }
 
-    pub fn expansion_cost(&self, expansion: &Expansion, seen: &BTreeSet<String>) -> f64 {
+    pub fn expansion_cost(&self, expansion: &Expansion, seen: HashSet<String>) -> f64 {
         let symbols = nonterminals(expansion);
         if symbols.len() == 0 {
             return 1.0;
@@ -242,7 +231,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             return f64::INFINITY;
         }
 
-        return symbols.iter().map(|sym| self.symbol_cost(&sym, seen)).sum();
+        return symbols.iter().map(|sym| self.symbol_cost(&sym, &seen)).sum::<f64>()  + 1.0;
     }
 
     pub fn expand_node_by_cost(
@@ -253,7 +242,6 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
     ) -> DerivationTree {
         let (symbol, children) = (node.symbol.clone(), &node.children);
         assert!(children.is_none());
-
         let expansions = &self.grammar[&symbol];
 
         let children_alternatives_with_cost: Vec<_> = expansions
@@ -261,12 +249,12 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             .map(|exp| {
                 (
                     self.expansion_to_children(exp),
-                    self.expansion_cost(exp, &BTreeSet::from([symbol.clone()])),
+                    self.expansion_cost(exp, HashSet::from([symbol.clone()])),
                     exp,
                 )
             })
             .collect();
-
+        
         let costs: Vec<_> = children_alternatives_with_cost
             .iter()
             .map(|(_, cost, _)| cost)
@@ -276,26 +264,26 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         let chosen_cost = costs
             .iter()
             .fold(0.0, |chosen_cost, x| choose(chosen_cost, *x));
-
         let children_alternatives_with_chosen_cost: Vec<_> = children_alternatives_with_cost
             .iter()
-            .filter(|(_, child_cost, _)| *child_cost == chosen_cost)
+            .filter(|(_, child_cost, _)| {
+                *child_cost == chosen_cost
+            })
             .collect();
-
+        
         let children_with_chosen_cost: Vec<Vec<_>> = children_alternatives_with_chosen_cost
             .iter()
             .map(|(child, _, _)| child.clone())
             .collect();
-
+       
         let expansion_with_chosen_cost: Vec<_> = children_alternatives_with_chosen_cost
             .iter()
             .map(|(_, _, expansion)| expansion)
             .collect();
 
         let index = self.choose_node_expansion(rd, node, &children_with_chosen_cost);
-
+       
         let chosen_children = &children_with_chosen_cost[index];
-
         let chosen_expansion = expansion_with_chosen_cost[index];
         let chosen_children = self.process_chosen_children(&chosen_children, chosen_expansion);
 
@@ -413,7 +401,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
     }
 }
 
-fn expansion_to_children<'l_use>(expansion: &Expansion<'l_use>) -> Vec<DerivationTree> {
+pub fn expansion_to_children<'l_use>(expansion: &Expansion<'l_use>) -> Vec<DerivationTree> {
     let expansion = exp_string(expansion);
 
     if expansion == "" {
@@ -424,11 +412,13 @@ fn expansion_to_children<'l_use>(expansion: &Expansion<'l_use>) -> Vec<Derivatio
     }
 
     let strings: Vec<&str> = RE_NONTERMINAL.split(&expansion).collect();
+    println!("strings: {:?}", strings);
     let non_empty_strings: Vec<String> = strings
         .par_iter()
         .filter(|s| s.len() > 0)
         .map(|s| s.to_string())
         .collect();
+
     let result = non_empty_strings
         .par_iter()
         .map(|s| {

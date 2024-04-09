@@ -1,9 +1,9 @@
+use fuzzingbook_rs::grammar::options::exp_string;
 use fuzzingbook_rs::grammar::str_helper::*;
-use fuzzingbook_rs::grammar::*;
-use regex::*;
-use std::any::Any;
-use std::{collections::*, hash::Hash};
-
+use fuzzingbook_rs::{grammar::*, grammar_fuzzer};
+use std::collections::*;
+use fuzzingbook_rs::grammar_fuzzer::*;
+use regex::Regex;
 fn main() {
     let mut rd = rand::thread_rng();
     let mut expr_grammar: Grammar = HashMap::new();
@@ -47,33 +47,21 @@ fn main() {
     );
     expr_grammar.insert("<digit>".to_string(), range_chars_as_str(CharRange::Digit));
 
+
+    let k = expansion_to_children(&Union::OnlyA("<term> + <expr>".to_string()));
+    println!("k[0].symbol: {}", k[0].symbol);
+    let mut k = GrammarsFuzzer::new(&expr_grammar, 
+        "<start>", 
+    3, 
+    5, Union::OnlyA(true));
+    //println!("{}",k.fuzz(&mut rd));
     //let new_grammar = extend_grammar(&grammars, extension);
 
     //let term = simple_grammar_fuzzer(&mut rd, &expr_grammar, "<start>", 10, 10, false).unwrap();
     //print!("{term}");
+    let re = Regex::new(r"(<[^<> ]*>)").unwrap();
+    let text = "<a> + <b>";
 
-    let mut ebnf_grammar: Grammar = HashMap::new();
-    ebnf_grammar.insert(
-        "<authority>".to_string(),
-        vec![Union::OnlyA("(<userinfo>@)?<host>(:<port>)?".to_string())],
-    );
-    let ebnf_grammar = convert_ebnf_grammar(&ebnf_grammar);
-    for it in ebnf_grammar {
-        print!("{} -> [", it.0);
-        for exp in it.1 {
-            match exp {
-                Union::OnlyA(a) => {
-                    print!("{}, ", a);
-                }
-                Union::OnlyB(b) => {
-                    print!("{}, ", b.0);
-                }
-            }
-        }
-
-        println!("]");
-    }
-
-    use fuzzingbook_rs::grammar_fuzzer::dot_escape;
-    println!("{}", dot_escape(&"\x01".to_string(), Some(false)));
+    println!("");
+        
 }
