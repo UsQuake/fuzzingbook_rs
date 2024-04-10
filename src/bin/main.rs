@@ -86,31 +86,26 @@ expr_grammar.insert("<digit>".to_string(), range_chars_as_str(CharRange::Digit))
 
     xml_grammar.insert(
         "<text>".to_string(),
-        vec![Union::OnlyA("<text><letter_space>".to_string()),
-        Union::OnlyA("<letter_space>".to_string())],
+        vec![Union::OnlyA("<text><letter-space>".to_string()),
+        Union::OnlyA("<letter-space>".to_string())],
     );
 
-    xml_grammar.insert("<letter>".to_string(), 
-    &range_chars_as_str(CharRange::Digit)
-        + & range_chars_as_str(CharRange::Letters));
-    xml_grammar.insert(
-        "<letter_space>".to_string(),
-        vec![Union::OnlyA("<text><letter_space>".to_string()),
-        Union::OnlyA("<letter_space>".to_string())],
-    );
+    let mut vec1= range_chars_as_str(CharRange::Digit);
+    vec1.append(&mut range_chars_as_str(CharRange::Letters));
+    vec1.append(&mut vec![Union::OnlyA("\\".to_string()), Union::OnlyA("'".to_string())]);
 
-    let mut f = GrammarsFuzzer::new(&xml_grammar,"<start>",3,5, Union::OnlyA(true));
+    let mut letter_vec = vec1.clone();
+    letter_vec.push(Union::OnlyA("'".to_string()));
 
-    f.fuzz(&mut rd);
-    let mut strings: Vec<&str> = Vec::with_capacity(8); 
-    for cap in RE_HTML_PARSABLE_NONTERMINAL.captures_iter("<<id_> + - z <xml-attribute>>") {
-        if let Some(m) = cap.name("nonterminal") {
-            strings.push(m.as_str());
-        }
-        if let Some(m) = cap.name("terminal") {
-            strings.push(m.as_str());
-        }
-    }
-    dbg!(strings);
+    let mut letter_space_vec = vec1.clone();
+    letter_space_vec.append(&mut vec![Union::OnlyA("\t".to_string()), Union::OnlyA(" ".to_string())]);
+
+    xml_grammar.insert("<letter>".to_string(), letter_vec);
+    xml_grammar.insert("<letter-space>".to_string(),letter_space_vec);
+
+    let mut f = GrammarsFuzzer::new(&xml_grammar,"<start>",100,100, Union::OnlyA(false));
+
+    let k = f.fuzz(&mut rd);
+    println!("{k}");
         
 }

@@ -412,7 +412,7 @@ pub fn expansion_to_children<'l_use>(expansion: &Expansion<'l_use>) -> Vec<Deriv
     }
 
     let mut strings: Vec<&str> = Vec::with_capacity(8); 
-    for cap in RE_NONTERMINAL_TERMINAL_SEPARATOR.captures_iter(&expansion) {
+    for cap in RE_HTML_PARSABLE_NONTERMINAL.captures_iter(&expansion) {
         if let Some(m) = cap.name("nonterminal") {
             strings.push(m.as_str());
         }
