@@ -411,8 +411,15 @@ pub fn expansion_to_children<'l_use>(expansion: &Expansion<'l_use>) -> Vec<Deriv
         }];
     }
 
-    let strings: Vec<&str> = RE_NONTERMINAL.split(&expansion).collect();
-    println!("strings: {:?}", strings);
+    let mut strings: Vec<&str> = Vec::with_capacity(8); 
+    for cap in RE_NONTERMINAL_TERMINAL_SEPARATOR.captures_iter(&expansion) {
+        if let Some(m) = cap.name("nonterminal") {
+            strings.push(m.as_str());
+        }
+        if let Some(m) = cap.name("terminal") {
+            strings.push(m.as_str());
+        }
+    }
     let non_empty_strings: Vec<String> = strings
         .par_iter()
         .filter(|s| s.len() > 0)

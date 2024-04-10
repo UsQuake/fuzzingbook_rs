@@ -54,14 +54,8 @@ fn main() {
         "<start>", 
     3, 
     5, Union::OnlyA(true));
-    //println!("{}",k.fuzz(&mut rd));
-    //let new_grammar = extend_grammar(&grammars, extension);
+    println!("{}",k.fuzz(&mut rd));
 
-    //let term = simple_grammar_fuzzer(&mut rd, &expr_grammar, "<start>", 10, 10, false).unwrap();
-    //print!("{term}");
-    let re = Regex::new(r"(<[^<> ]*>)").unwrap();
-    let text = "<a> + <b>";
 
-    println!("");
         
 }
