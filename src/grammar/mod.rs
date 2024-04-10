@@ -31,7 +31,11 @@ lazy_static! {
     pub static ref RE_PARENTHESIZED_EXPR: Regex = Regex::new(r"\([^()]*\)[?+*]").unwrap();
     pub static ref RE_NONTERMINAL: Regex = Regex::new(r"(<[^<> ]*>)").unwrap();
     pub static ref RE_EXTENDED_NONTERMINAL: Regex = Regex::new(r"(<[^<> ]*>[?+*])").unwrap();
-    pub static ref RE_NONTERMINAL_TERMINAL_SEPARATOR: Regex = Regex::new(r"(?P<nonterminal><[a-zA-Z0-9[-]]*>)|(?P<terminal>[^<> ])").unwrap();
+    pub static ref RE_NONTERMINAL_TERMINAL_SEPARATOR: Regex = Regex::new(r"(?P<nonterminal><[a-zA-Z0-9[-]]*>)|(?P<terminal>[^<>])").unwrap();
+    pub static ref RE_HTML_PARSABLE_NONTERMINAL: Regex = Regex::new(r"(?P<nonterminal><[a-zA-Z0-9[-][_]]*>)|(?P<terminal>>|<|\/|[^<>]|[=]*)").unwrap();
+}
+
+lazy_static!{
 }
 static START_SYMBOL: &'static str = "<start>";
 

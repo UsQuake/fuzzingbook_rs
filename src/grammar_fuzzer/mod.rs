@@ -21,7 +21,7 @@ impl PartialEq for DerivationTree {
     }
 }
 lazy_static! {
-    static ref DERIVATION_TREE: DerivationTree = DerivationTree {
+    pub static ref DERIVATION_TREE: DerivationTree = DerivationTree {
         symbol: "<start>".to_string(),
         children: Some(vec![Box::from(DerivationTree {
             symbol: "<expr>".to_string(),
@@ -263,7 +263,8 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
 
         let chosen_cost = costs
             .iter()
-            .fold(0.0, |chosen_cost, x| choose(chosen_cost, *x));
+            .fold(costs[0], |chosen_cost, x| choose(chosen_cost, *x));
+        
         let children_alternatives_with_chosen_cost: Vec<_> = children_alternatives_with_cost
             .iter()
             .filter(|(_, child_cost, _)| {
@@ -282,7 +283,6 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             .collect();
 
         let index = self.choose_node_expansion(rd, node, &children_with_chosen_cost);
-       
         let chosen_children = &children_with_chosen_cost[index];
         let chosen_expansion = expansion_with_chosen_cost[index];
         let chosen_children = self.process_chosen_children(&chosen_children, chosen_expansion);
@@ -420,6 +420,7 @@ pub fn expansion_to_children<'l_use>(expansion: &Expansion<'l_use>) -> Vec<Deriv
             strings.push(m.as_str());
         }
     }
+    
     let non_empty_strings: Vec<String> = strings
         .par_iter()
         .filter(|s| s.len() > 0)

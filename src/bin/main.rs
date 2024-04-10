@@ -6,56 +6,111 @@ use fuzzingbook_rs::grammar_fuzzer::*;
 use regex::Regex;
 fn main() {
     let mut rd = rand::thread_rng();
-    let mut expr_grammar: Grammar = HashMap::new();
-
+    let mut expr_grammar:Grammar = HashMap::new();
     expr_grammar.insert(
+    "<start>".to_string(),
+    vec![Union::OnlyA("<expr>".to_string())],
+);
+expr_grammar.insert(
+    "<expr>".to_string(),
+    vec![
+        Union::OnlyA("<term> + <expr>".to_string()),
+        Union::OnlyA("<term> - <expr>".to_string()),
+        Union::OnlyA("<term>".to_string()),
+    ],
+);
+expr_grammar.insert(
+    "<term>".to_string(),
+    vec![
+        Union::OnlyA("<factor> * <term>".to_string()),
+        Union::OnlyA("<factor> / <term>".to_string()),
+        Union::OnlyA("<factor>".to_string()),
+    ],
+);
+expr_grammar.insert(
+    "<factor>".to_string(),
+    vec![
+        Union::OnlyA("+<factor>".to_string()),
+        Union::OnlyA("-<factor>".to_string()),
+        Union::OnlyA("(<expr>)".to_string()),
+        Union::OnlyA("<integer>.<integer>".to_string()),
+        Union::OnlyA("<integer>".to_string()),
+    ],
+);
+expr_grammar.insert(
+    "<integer>".to_string(),
+    vec![
+        Union::OnlyA("<digit><integer>".to_string()),
+        Union::OnlyA("<digit>".to_string()),
+    ],
+);
+expr_grammar.insert("<digit>".to_string(), range_chars_as_str(CharRange::Digit));
+
+
+    let mut xml_grammar: Grammar = HashMap::new();
+    xml_grammar.insert(
         "<start>".to_string(),
-        vec![Union::OnlyA("<expr>".to_string())],
+        vec![Union::OnlyA("<xml-tree>".to_string())],
     );
-    expr_grammar.insert(
-        "<expr>".to_string(),
-        vec![
-            Union::OnlyA("<term> + <expr>".to_string()),
-            Union::OnlyA("<term> - <expr>".to_string()),
-            Union::OnlyA("<term>".to_string()),
-        ],
+    xml_grammar.insert(
+        "<xml-tree>".to_string(),
+        vec![Union::OnlyA("<text>".to_string()),
+        Union::OnlyA("<xml-open-tag><xml-tree><xml-close-tag>".to_string()),
+        Union::OnlyA("<xml-openclose-tag>".to_string()),
+        Union::OnlyA("<xml-tree><xml-tree>".to_string())],
     );
-    expr_grammar.insert(
-        "<term>".to_string(),
-        vec![
-            Union::OnlyA("<factor> * <term>".to_string()),
-            Union::OnlyA("<factor> / <term>".to_string()),
-            Union::OnlyA("<factor>".to_string()),
-        ],
+    xml_grammar.insert(
+        "<xml-open-tag>".to_string(),
+        vec![Union::OnlyA("<<id>>".to_string()),
+        Union::OnlyA("<<id> <xml-attribute>>".to_string())],
     );
-    expr_grammar.insert(
-        "<factor>".to_string(),
-        vec![
-            Union::OnlyA("+<factor>".to_string()),
-            Union::OnlyA("-<factor>".to_string()),
-            Union::OnlyA("(<expr>)".to_string()),
-            Union::OnlyA("<integer>.<integer>".to_string()),
-            Union::OnlyA("<integer>".to_string()),
-        ],
+    xml_grammar.insert(
+        "<xml-openclose-tag>".to_string(),
+        vec![Union::OnlyA("<<id>/>".to_string()),
+        Union::OnlyA("<<id>/> <xml-attribute>/>".to_string())],
     );
-    expr_grammar.insert(
-        "<integer>".to_string(),
-        vec![
-            Union::OnlyA("<digit><integer>".to_string()),
-            Union::OnlyA("<digit>".to_string()),
-        ],
+    xml_grammar.insert(
+        "<xml-close-tag>".to_string(),
+        vec![Union::OnlyA("</<id>>".to_string())],
     );
-    expr_grammar.insert("<digit>".to_string(), range_chars_as_str(CharRange::Digit));
+    xml_grammar.insert(
+        "<xml-attribute>".to_string(),
+        vec![Union::OnlyA("<id>=<id>".to_string()),
+        Union::OnlyA("<xml-attribute> <xml-attribute>".to_string())],
+    );
+    xml_grammar.insert(
+        "<id>".to_string(),
+        vec![Union::OnlyA("<letter>".to_string()),
+        Union::OnlyA("<id><letter>".to_string())],
+    );
 
+    xml_grammar.insert(
+        "<text>".to_string(),
+        vec![Union::OnlyA("<text><letter_space>".to_string()),
+        Union::OnlyA("<letter_space>".to_string())],
+    );
 
-    let k = expansion_to_children(&Union::OnlyA("<term> + <expr>".to_string()));
-    println!("k[0].symbol: {}", k[0].symbol);
-    let mut k = GrammarsFuzzer::new(&expr_grammar, 
-        "<start>", 
-    3, 
-    5, Union::OnlyA(true));
-    println!("{}",k.fuzz(&mut rd));
+    xml_grammar.insert("<letter>".to_string(), 
+    &range_chars_as_str(CharRange::Digit)
+        + & range_chars_as_str(CharRange::Letters));
+    xml_grammar.insert(
+        "<letter_space>".to_string(),
+        vec![Union::OnlyA("<text><letter_space>".to_string()),
+        Union::OnlyA("<letter_space>".to_string())],
+    );
 
+    let mut f = GrammarsFuzzer::new(&xml_grammar,"<start>",3,5, Union::OnlyA(true));
 
+    f.fuzz(&mut rd);
+    let mut strings: Vec<&str> = Vec::with_capacity(8); 
+    for cap in RE_HTML_PARSABLE_NONTERMINAL.captures_iter("<<id_> + - z <xml-attribute>>") {
+        if let Some(m) = cap.name("nonterminal") {
+            strings.push(m.as_str());
+        }
+        if let Some(m) = cap.name("terminal") {
+            strings.push(m.as_str());
+        }
+    }
+    dbg!(strings);
         
 }
