@@ -1,5 +1,5 @@
 use std::{collections::{BTreeSet, HashSet}, f32::EPSILON};
-
+use std::time::{SystemTime, UNIX_EPOCH};
 use self::options::exp_string;
 use crate::grammar::*;
 use lazy_static::lazy_static;
@@ -98,7 +98,15 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         node: &DerivationTree,
         children_alternatives: &Vec<Vec<DerivationTree>>,
     ) -> usize {
-        return rd.gen_range(0..children_alternatives.len());
+        let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    // 밀리초 단위의 타임스탬프를 시드로 사용하여 간단한 의사 난수 생성기를 초기화합니다.
+    let mut rng = rand::rngs::StdRng::seed_from_u64(timestamp as u64);
+        let random_number = rng.gen_range(0..children_alternatives.len());
+       // let random_number =  rd.gen_range(0..children_alternatives.len());
+       return random_number;
     }
 
     pub fn expansion_to_children(&self, expansion: &Expansion<'l_use>) -> Vec<DerivationTree> {
