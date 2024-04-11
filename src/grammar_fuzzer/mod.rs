@@ -1,10 +1,10 @@
-use std::{collections::{BTreeSet, HashSet}, f32::EPSILON};
+use std::{collections::{BTreeSet, HashSet}, f32::EPSILON, time::{SystemTime, UNIX_EPOCH}};
 use self::options::exp_string;
 use crate::grammar::*;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
 use regex::Regex;
-
+use rand::{prelude::*, rngs::mock::StepRng};
 mod test;
 
 #[derive(Clone)]
@@ -42,7 +42,6 @@ lazy_static! {
 }
 
 pub struct GrammarsFuzzer<'l_use> {
-    rng: &'l_use StdRng,
     grammar: Grammar<'l_use>,
     start_symbol: &'l_use str, //= START_SYMBOL
     min_nonterminals: usize,   //= 0,
@@ -54,7 +53,6 @@ pub struct GrammarsFuzzer<'l_use> {
 
 impl<'l_use> GrammarsFuzzer<'l_use> {
     pub fn new(
-        rng: &'l_use StdRng,
         grammar: &Grammar<'l_use>,
         start_symbol: &'l_use str, //= START_SYMBOL
         min_nonterminals: usize,   //= 0,
@@ -62,7 +60,6 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         log: Union<bool, usize>,
     ) -> Self {
         Self {
-            rng: rng,
             grammar: grammar.clone(),
             start_symbol: start_symbol,
             min_nonterminals: min_nonterminals,
@@ -98,7 +95,10 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         children_alternatives: &Vec<Vec<DerivationTree>>,
     ) -> usize {
 
-       return self.rng.gen_range(0..children_alternatives.len());
+       return SystemTime::now()
+       .duration_since(UNIX_EPOCH)
+       .unwrap()
+       .as_millis() as usize % children_alternatives.len();
     }
 
     pub fn expansion_to_children(&self, expansion: &Expansion<'l_use>) -> Vec<DerivationTree> {
@@ -177,7 +177,10 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         tree: &DerivationTree,
         children: &Vec<Box<DerivationTree>>,
     ) -> usize {
-       return self.rng.gen_range(0..children.len());
+       return SystemTime::now()
+       .duration_since(UNIX_EPOCH)
+       .unwrap()
+       .as_millis() as usize % children.len();
     }
 
     pub fn expand_tree_once(&self, tree: &DerivationTree) -> DerivationTree {

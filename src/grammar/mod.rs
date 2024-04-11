@@ -4,13 +4,12 @@ mod test;
 use self::options::{exp_opts, Option};
 
 use lazy_static::lazy_static;
-use rand::prelude::*;
-use rayon::prelude::*;
+use rand::{Rng, SeedableRng};
+//use rayon::prelude::*;
 use regex::Regex;
 use std::{
-    any::Any,
     collections::{BTreeSet, HashMap},
-    ops::Sub, time::SystemTime, time::UNIX_EPOCH
+    time::SystemTime, time::UNIX_EPOCH
 };
 
 // #[derive(Clone)]

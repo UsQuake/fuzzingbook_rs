@@ -1,6 +1,7 @@
 use fuzzingbook_rs::grammar::str_helper::*;
 use fuzzingbook_rs::grammar::*;
-use std::collections::*;
+use rand::SeedableRng;
+use std::{collections::*, time::{SystemTime, UNIX_EPOCH}};
 use fuzzingbook_rs::grammar_fuzzer::*;
 use std::time::{Duration, Instant};
 
@@ -108,7 +109,7 @@ expr_grammar.insert("<digit>".to_string(), range_chars_as_str(CharRange::Digit))
     xml_grammar.insert("<letter>".to_string(), letter_vec);
     xml_grammar.insert("<letter-space>".to_string(),letter_space_vec);
 
-    let mut f = GrammarsFuzzer::new(&rng, &expr_grammar,"<start>",0,15, Union::OnlyA(false));
+    let mut f = GrammarsFuzzer::new( &expr_grammar,"<start>",0,15, Union::OnlyA(false));
 
     {
         let mut x_y_s = BTreeMap::new();
