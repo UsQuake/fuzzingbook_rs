@@ -111,7 +111,8 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         expansion: &Expansion,
     ) -> Vec<Box<DerivationTree>> {
         return chosen_children
-            .par_iter()
+            //.par_iter()
+            .iter()
             .map(|subtree| Box::new(subtree.clone()))
             .collect();
     }
@@ -195,7 +196,8 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             .collect();
 
         let index_map: Vec<usize> = updated_children
-            .par_iter()
+            //.par_iter()
+            .iter()
             .enumerate()
             .filter(|(_,c)| {
                 expandable_children
@@ -402,8 +404,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
 }
 
 pub fn expansion_to_children<'l_use>(expansion: &Expansion<'l_use>) -> Vec<DerivationTree> {
-    let expansion = exp_string(expansion);
-
+    let expansion = exp_string(&expansion);
     if expansion == "" {
         return vec![DerivationTree {
             symbol: "".to_string(),
@@ -412,23 +413,30 @@ pub fn expansion_to_children<'l_use>(expansion: &Expansion<'l_use>) -> Vec<Deriv
     }
 
     let mut strings: Vec<&str> = Vec::with_capacity(8); 
-    for cap in RE_HTML_PARSABLE_NONTERMINAL.captures_iter(&expansion) {
-        if let Some(m) = cap.name("nonterminal") {
-            strings.push(m.as_str());
+    let mut last_match_end = 0;
+        for mat in RE_NONTERMINAL.find_iter(&expansion) {
+            let start_index = mat.start();
+            let matched_text = mat.as_str();
+            strings.push(&matched_text);
+            let unmatched_text = &expansion[last_match_end..start_index];
+            strings.push(&unmatched_text);
+            last_match_end = mat.end();
         }
-        if let Some(m) = cap.name("terminal") {
-            strings.push(m.as_str());
+        let unmatched_text_after_last_match = &expansion[last_match_end..];
+        if !unmatched_text_after_last_match.is_empty(){
+            strings.push(&unmatched_text_after_last_match);
         }
-    }
-    
+
     let non_empty_strings: Vec<String> = strings
-        .par_iter()
+        //.par_iter()
+        .iter()
         .filter(|s| s.len() > 0)
         .map(|s| s.to_string())
         .collect();
 
     let result = non_empty_strings
-        .par_iter()
+        //.par_iter()
+        .iter()
         .map(|s| {
             if is_nonterminal(s) {
                 DerivationTree {
@@ -453,7 +461,8 @@ pub fn tree_to_string(tree: &DerivationTree) -> String {
     if children.is_some() {
         let children = children.unwrap();
         let nodes: Vec<String> = children
-            .par_iter()
+            //.par_iter()
+            .iter()
             .map(|nonterm_node| tree_to_string(&nonterm_node))
             .collect();
         return nodes.join("");
@@ -477,7 +486,8 @@ pub fn all_terminals(tree: &DerivationTree) -> String {
         return symbol.clone();
     }
     let terminals: Vec<String> = children
-        .par_iter()
+        //.par_iter()
+        .iter()
         .map(|nonterm_node| all_terminals(&nonterm_node))
         .collect();
     return terminals.join("");

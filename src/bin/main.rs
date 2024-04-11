@@ -108,12 +108,21 @@ expr_grammar.insert("<digit>".to_string(), range_chars_as_str(CharRange::Digit))
     let mut x_y_s = BTreeMap::new();
     for _ in 0..50{
         let now = Instant::now();
-        let k = f.fuzz(&mut rd);
-        x_y_s.insert(k.len(), now.elapsed().as_secs_f64());
+        let fuzzed_input = f.fuzz(&mut rd);
+        let elapsed = now.elapsed().as_secs_f64();
+        x_y_s.insert(fuzzed_input.len(), (elapsed, fuzzed_input));
     }
-    println!("{:?}", x_y_s)
 
-    
-   
-        
+    let mut i = 0.0;
+    for (_,(elapsed, _)) in &x_y_s{
+        i += elapsed;
+    }
+    let avg = i / 50.0;
+    println!("avg: {avg}"); 
+    if let Some((size, (time, value))) = x_y_s.pop_last(){
+        println!("max size: {size}\nmax elapsed_time: {time}\nlongest fuzzed input: {value}");
+    }
+ 
+
+
 }
