@@ -1,16 +1,11 @@
 use fuzzingbook_rs::grammar::str_helper::*;
 use fuzzingbook_rs::grammar::*;
 use rand::SeedableRng;
-use std::{collections::*, time::{SystemTime, UNIX_EPOCH}};
+use std::{collections::*, time::{SystemTime}};
 use fuzzingbook_rs::grammar_fuzzer::*;
 use std::time::{Duration, Instant};
 
 fn main() {
-    let timestamp = SystemTime::now()
-    .duration_since(UNIX_EPOCH)
-    .unwrap()
-    .as_millis();
-   let mut rng = rand::rngs::StdRng::seed_from_u64(timestamp as u64);
    
     let mut expr_grammar:Grammar = HashMap::new();
     expr_grammar.insert(
