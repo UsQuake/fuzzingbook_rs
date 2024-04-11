@@ -1,10 +1,8 @@
-use std::{alloc::System, collections::{BTreeSet, HashSet}, f32::EPSILON, hash::Hash, time::{SystemTime, UNIX_EPOCH}};
+use std::{collections::{hash_map::DefaultHasher, BTreeSet, HashSet}, hash::{Hash, Hasher}, time::{SystemTime, UNIX_EPOCH}};
 use self::options::exp_string;
 use crate::grammar::*;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
-use regex::Regex;
-use rand::{prelude::*, rngs::mock::StepRng};
 mod test;
 
 #[derive(Clone)]
@@ -393,7 +391,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
     }
 
     pub fn fuzz(&mut self) -> String {
-        let mut rand_seed = (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() >> 32) as usize;
+        let mut rand_seed = (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() & 0xFFFFFFFF) as usize;
         let fuzzed_tree = self.fuzz_tree(&mut rand_seed);
         self.derivation_tree = Some(fuzzed_tree.clone());
         return all_terminals(&fuzzed_tree);
@@ -401,12 +399,10 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
 }
 
 pub fn get_rand(seed: &mut usize) -> usize{
-    *seed = (*seed ^ 61) ^ (*seed >> 16);
-    *seed *= 9;
-    *seed = *seed ^ (*seed >>4);
-    *seed *= 0x27d4eb2d;
-    *seed = *seed ^ (*seed >> 15);
-    *seed
+    let mut hasher = DefaultHasher::new();
+    seed.hash(&mut hasher);
+    *seed = (hasher.finish() >> 32) as usize;
+    return *seed;
 }
 
 pub fn expansion_to_children<'l_use>(expansion: &Expansion<'l_use>) -> Vec<DerivationTree> {

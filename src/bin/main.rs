@@ -1,7 +1,6 @@
 use fuzzingbook_rs::grammar::str_helper::*;
 use fuzzingbook_rs::grammar::*;
-use rand::SeedableRng;
-use std::{collections::*, time::{SystemTime}};
+use std::{collections::*};
 use fuzzingbook_rs::grammar_fuzzer::*;
 use std::time::{Duration, Instant};
 
