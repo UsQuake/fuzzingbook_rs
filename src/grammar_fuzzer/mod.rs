@@ -49,7 +49,7 @@ pub struct GrammarsFuzzer<'l_use> {
     min_nonterminals: usize,   //= 0,
     max_nonterminals: usize,   //= 10,
     log: Union<bool, usize>,
-    expand_node: std::option::Option<fn(&Self, &mut ThreadRng, &DerivationTree) -> DerivationTree>,
+    expand_node: std::option::Option<fn(&Self, &DerivationTree) -> DerivationTree>,
     derivation_tree: std::option::Option<DerivationTree>,
 }
 
@@ -94,7 +94,6 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
 
     pub fn choose_node_expansion(
         &self,
-        rd: &mut ThreadRng,
         node: &DerivationTree,
         children_alternatives: &Vec<Vec<DerivationTree>>,
     ) -> usize {
@@ -102,11 +101,8 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_millis();
-    // 밀리초 단위의 타임스탬프를 시드로 사용하여 간단한 의사 난수 생성기를 초기화합니다.
-    let mut rng = rand::rngs::StdRng::seed_from_u64(timestamp as u64);
-        let random_number = rng.gen_range(0..children_alternatives.len());
-       // let random_number =  rd.gen_range(0..children_alternatives.len());
-       return random_number;
+       let mut rng = rand::rngs::StdRng::seed_from_u64(timestamp as u64);
+       return rng.gen_range(0..children_alternatives.len());
     }
 
     pub fn expansion_to_children(&self, expansion: &Expansion<'l_use>) -> Vec<DerivationTree> {
@@ -119,14 +115,12 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         expansion: &Expansion,
     ) -> Vec<Box<DerivationTree>> {
         return chosen_children
-            //.par_iter()
-            .iter()
+            .par_iter()
             .map(|subtree| Box::new(subtree.clone()))
             .collect();
     }
     pub fn expand_node_randomly(
         &self,
-        rd: &mut ThreadRng,
         node: &DerivationTree,
     ) -> DerivationTree {
         let (symbol, children) = (node.symbol.clone(), node.children.clone());
@@ -148,7 +142,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             .map(|exp| self.expansion_to_children(exp))
             .collect();
 
-        let index = self.choose_node_expansion(rd, node, &children_alternatives);
+        let index = self.choose_node_expansion(node, &children_alternatives);
         let chosen_children = children_alternatives[index].clone();
 
         let chosen_children = self.process_chosen_children(&chosen_children, &expansions[index]);
@@ -183,18 +177,22 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
 
     pub fn choose_tree_expansion(
         &self,
-        rd: &mut ThreadRng,
         tree: &DerivationTree,
         children: &Vec<Box<DerivationTree>>,
     ) -> usize {
-        return rd.gen_range(0..children.len());
+        let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+       let mut rng = rand::rngs::StdRng::seed_from_u64(timestamp as u64);
+       return rng.gen_range(0..children.len());
     }
 
-    pub fn expand_tree_once(&self, rd: &mut ThreadRng, tree: &DerivationTree) -> DerivationTree {
+    pub fn expand_tree_once(&self, tree: &DerivationTree) -> DerivationTree {
         let mut tree = tree.clone();
         let (_symbol, children) = (&tree.symbol, &tree.children);
         if children.is_none() {
-            return self.expand_node.unwrap()(&self, rd, &tree);
+            return self.expand_node.unwrap()(&self, &tree);
         }
         let mut updated_children = children.clone().unwrap();
         let expandable_children: Vec<Box<DerivationTree>> = updated_children
@@ -204,8 +202,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             .collect();
 
         let index_map: Vec<usize> = updated_children
-            //.par_iter()
-            .iter()
+            .par_iter()
             .enumerate()
             .filter(|(_,c)| {
                 expandable_children
@@ -216,9 +213,9 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             .map(|(i, _)| i)
             .collect();
 
-        let child_to_be_expanded = self.choose_tree_expansion(rd, &tree, &expandable_children);
+        let child_to_be_expanded = self.choose_tree_expansion(&tree, &expandable_children);
         updated_children[index_map[child_to_be_expanded]] =
-            Box::new(self.expand_tree_once(rd, &expandable_children[child_to_be_expanded]));
+            Box::new(self.expand_tree_once(&expandable_children[child_to_be_expanded]));
         tree.children = Some(updated_children);
         return tree;
     }
@@ -246,7 +243,6 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
 
     pub fn expand_node_by_cost(
         &self,
-        rd: &mut ThreadRng,
         node: &DerivationTree,
         choose: fn(f64, f64) -> f64,
     ) -> DerivationTree {
@@ -292,7 +288,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             .map(|(_, _, expansion)| expansion)
             .collect();
 
-        let index = self.choose_node_expansion(rd, node, &children_with_chosen_cost);
+        let index = self.choose_node_expansion(node, &children_with_chosen_cost);
         let chosen_children = &children_with_chosen_cost[index];
         let chosen_expansion = expansion_with_chosen_cost[index];
         let chosen_children = self.process_chosen_children(&chosen_children, chosen_expansion);
@@ -305,7 +301,6 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
 
     pub fn expand_node_min_cost(
         &self,
-        rd: &mut ThreadRng,
         node: &DerivationTree,
     ) -> DerivationTree {
         match self.log {
@@ -316,16 +311,11 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             }
             Union::OnlyB(_) => {}
         }
-        self.expand_node_by_cost(rd, node, f64::min)
+        self.expand_node_by_cost(node, f64::min)
     }
-
-    //pub fn expand_node(&self, rd: &mut ThreadRng, node: &DerivationTree) -> DerivationTree{
-    //self.expand_node_min_cost(rd, node)
-    //}
 
     pub fn expand_node_max_cost(
         &self,
-        rd: &mut ThreadRng,
         node: &DerivationTree,
     ) -> DerivationTree {
         match self.log {
@@ -336,7 +326,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             }
             Union::OnlyB(_) => {}
         }
-        self.expand_node_by_cost(rd, node, f64::max)
+        self.expand_node_by_cost(node, f64::max)
     }
 
     pub fn log_tree(&self, tree: &DerivationTree) {
@@ -352,9 +342,8 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
 
     fn expand_tree_with_strategy(
         &mut self,
-        rd: &mut ThreadRng,
         tree: &DerivationTree,
-        expand_node_method: fn(&Self, &mut ThreadRng, &DerivationTree) -> DerivationTree,
+        expand_node_method: fn(&Self, &DerivationTree) -> DerivationTree,
         limit: std::option::Option<usize>, // = None
     ) -> DerivationTree {
         let mut tree = tree.clone();
@@ -362,37 +351,35 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         while (limit.is_none() || self.possible_expansions(&tree) < limit.unwrap())
             && self.any_possible_expansions(&tree)
         {
-            tree = self.expand_tree_once(rd, &tree);
+            tree = self.expand_tree_once(&tree);
             self.log_tree(&tree)
         }
 
         return tree;
     }
 
-    pub fn expand_tree(&mut self, rd: &mut ThreadRng, tree: &DerivationTree) -> DerivationTree {
+    pub fn expand_tree(&mut self, tree: &DerivationTree) -> DerivationTree {
         self.log_tree(tree);
         let mut tree = tree.clone();
         tree = self.expand_tree_with_strategy(
-            rd,
             &tree,
             Self::expand_node_max_cost,
             Some(self.min_nonterminals),
         );
         tree = self.expand_tree_with_strategy(
-            rd,
             &tree,
             Self::expand_node_randomly,
             Some(self.max_nonterminals),
         );
-        tree = self.expand_tree_with_strategy(rd, &tree, Self::expand_node_min_cost, None);
+        tree = self.expand_tree_with_strategy(&tree, Self::expand_node_min_cost, None);
 
         assert!(self.possible_expansions(&tree) == 0);
 
         return tree;
     }
-    pub fn fuzz_tree(&mut self, rd: &mut ThreadRng) -> DerivationTree {
+    pub fn fuzz_tree(&mut self) -> DerivationTree {
         let mut tree = self.init_tree();
-        tree = self.expand_tree(rd, &tree);
+        tree = self.expand_tree(&tree);
         match self.log {
             Union::OnlyA(should_log) => {
                 if should_log {
@@ -404,8 +391,8 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         return tree;
     }
 
-    pub fn fuzz(&mut self, rd: &mut ThreadRng) -> String {
-        let fuzzed_tree = self.fuzz_tree(rd);
+    pub fn fuzz(&mut self) -> String {
+        let fuzzed_tree = self.fuzz_tree();
         self.derivation_tree = Some(fuzzed_tree.clone());
         return all_terminals(&fuzzed_tree);
     }
@@ -436,15 +423,13 @@ pub fn expansion_to_children<'l_use>(expansion: &Expansion<'l_use>) -> Vec<Deriv
         }
 
     let non_empty_strings: Vec<String> = strings
-        //.par_iter()
-        .iter()
+        .par_iter()
         .filter(|s| s.len() > 0)
         .map(|s| s.to_string())
         .collect();
 
     let result = non_empty_strings
-        //.par_iter()
-        .iter()
+        .par_iter()
         .map(|s| {
             if is_nonterminal(s) {
                 DerivationTree {
@@ -469,8 +454,7 @@ pub fn tree_to_string(tree: &DerivationTree) -> String {
     if children.is_some() {
         let children = children.unwrap();
         let nodes: Vec<String> = children
-            //.par_iter()
-            .iter()
+            .par_iter()
             .map(|nonterm_node| tree_to_string(&nonterm_node))
             .collect();
         return nodes.join("");
@@ -494,8 +478,7 @@ pub fn all_terminals(tree: &DerivationTree) -> String {
         return symbol.clone();
     }
     let terminals: Vec<String> = children
-        //.par_iter()
-        .iter()
+        .par_iter()
         .map(|nonterm_node| all_terminals(&nonterm_node))
         .collect();
     return terminals.join("");

@@ -1,12 +1,10 @@
-use fuzzingbook_rs::grammar::options::exp_string;
 use fuzzingbook_rs::grammar::str_helper::*;
-use fuzzingbook_rs::{grammar::*, grammar_fuzzer};
+use fuzzingbook_rs::grammar::*;
 use std::collections::*;
 use fuzzingbook_rs::grammar_fuzzer::*;
 use std::time::{Duration, Instant};
 
 fn main() {
-    let mut rd = rand::thread_rng();
     let mut expr_grammar:Grammar = HashMap::new();
     expr_grammar.insert(
     "<start>".to_string(),
@@ -110,26 +108,7 @@ expr_grammar.insert("<digit>".to_string(), range_chars_as_str(CharRange::Digit))
         let mut x_y_s = BTreeMap::new();
         for _ in 0..50{
             let now = Instant::now();
-            let fuzzed_input = f.fuzz(&mut rd);
-            let elapsed = now.elapsed().as_secs_f64();
-            x_y_s.insert(fuzzed_input.len(), (elapsed, fuzzed_input));
-        }
-    
-        let mut i = 0.0;
-        for (_,(elapsed, _)) in &x_y_s{
-            i += elapsed;
-        }
-        let avg = i / 50.0;
-        println!("avg: {avg}"); 
-        if let Some((size, (time, value))) = x_y_s.pop_last(){
-            println!("max size: {size}\nmax elapsed_time: {time}\nlongest fuzzed input: {value}");
-        }
-    }
-    {
-        let mut x_y_s = BTreeMap::new();
-        for _ in 0..50{
-            let now = Instant::now();
-            let fuzzed_input =  simple_grammar_fuzzer(&mut rd,&expr_grammar,"<start>",15,100,false).unwrap();
+            let fuzzed_input = f.fuzz();
             let elapsed = now.elapsed().as_secs_f64();
             x_y_s.insert(fuzzed_input.len(), (elapsed, fuzzed_input));
         }

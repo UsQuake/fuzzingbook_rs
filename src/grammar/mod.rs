@@ -10,7 +10,7 @@ use regex::Regex;
 use std::{
     any::Any,
     collections::{BTreeSet, HashMap},
-    ops::Sub,
+    ops::Sub, time::SystemTime, time::UNIX_EPOCH
 };
 
 // #[derive(Clone)]
@@ -432,7 +432,13 @@ pub fn simple_grammar_fuzzer<'l_use>(
 ) -> Result<String, &'static str> {
     let mut term = String::from(start_symbol);
     let mut expansion_trials = 0;
-
+    let timestamp = SystemTime::now()
+    .duration_since(UNIX_EPOCH)
+    .unwrap()
+    .as_millis();
+    // 밀리초 단위의 타임스탬프를 시드로 사용하여 간단한 의사 난수 생성기를 초기화합니다.
+    let mut rng = rand::rngs::StdRng::seed_from_u64(timestamp as u64);
+    
     while nonterminals(&Union::OnlyA(term.clone())).len() > 0 {
         let sub_nonterminals = term.clone();
         let none_terminals = nonterminals(&Union::OnlyA(sub_nonterminals.clone()));
