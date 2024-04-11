@@ -423,7 +423,6 @@ fn trim_grammar<'l_use>(grammar: &Grammar<'l_use>, start_symbol: &'l_use str) ->
 }
 
 pub fn simple_grammar_fuzzer<'l_use>(
-    rd: &mut ThreadRng,
     syntax: &Grammar,
     start_symbol: &'l_use str,
     max_nonterminals: usize,
@@ -442,12 +441,12 @@ pub fn simple_grammar_fuzzer<'l_use>(
     while nonterminals(&Union::OnlyA(term.clone())).len() > 0 {
         let sub_nonterminals = term.clone();
         let none_terminals = nonterminals(&Union::OnlyA(sub_nonterminals.clone()));
-        let rand_var = rd.gen_range(0..none_terminals.len());
+        let rand_var = rng.gen_range(0..none_terminals.len());
         let symbol_to_expand = &none_terminals[rand_var];
 
         let expansions = &syntax[symbol_to_expand];
 
-        let rand_var2 = rd.gen_range(0..expansions.len());
+        let rand_var2 = rng.gen_range(0..expansions.len());
         let expansion = &expansions[rand_var2];
 
         let expansion = match expansion {

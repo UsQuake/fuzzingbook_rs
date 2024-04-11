@@ -1,9 +1,7 @@
 use std::{collections::{BTreeSet, HashSet}, f32::EPSILON};
-use std::time::{SystemTime, UNIX_EPOCH};
 use self::options::exp_string;
 use crate::grammar::*;
 use lazy_static::lazy_static;
-use rand::prelude::*;
 use rayon::prelude::*;
 use regex::Regex;
 
@@ -44,6 +42,7 @@ lazy_static! {
 }
 
 pub struct GrammarsFuzzer<'l_use> {
+    rng: &'l_use StdRng,
     grammar: Grammar<'l_use>,
     start_symbol: &'l_use str, //= START_SYMBOL
     min_nonterminals: usize,   //= 0,
@@ -55,14 +54,15 @@ pub struct GrammarsFuzzer<'l_use> {
 
 impl<'l_use> GrammarsFuzzer<'l_use> {
     pub fn new(
+        rng: &'l_use StdRng,
         grammar: &Grammar<'l_use>,
         start_symbol: &'l_use str, //= START_SYMBOL
         min_nonterminals: usize,   //= 0,
         max_nonterminals: usize,   //= 10,
         log: Union<bool, usize>,
     ) -> Self {
-        //= False
         Self {
+            rng: rng,
             grammar: grammar.clone(),
             start_symbol: start_symbol,
             min_nonterminals: min_nonterminals,
@@ -97,12 +97,8 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         node: &DerivationTree,
         children_alternatives: &Vec<Vec<DerivationTree>>,
     ) -> usize {
-        let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis();
-       let mut rng = rand::rngs::StdRng::seed_from_u64(timestamp as u64);
-       return rng.gen_range(0..children_alternatives.len());
+
+       return self.rng.gen_range(0..children_alternatives.len());
     }
 
     pub fn expansion_to_children(&self, expansion: &Expansion<'l_use>) -> Vec<DerivationTree> {
@@ -181,12 +177,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         tree: &DerivationTree,
         children: &Vec<Box<DerivationTree>>,
     ) -> usize {
-        let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis();
-       let mut rng = rand::rngs::StdRng::seed_from_u64(timestamp as u64);
-       return rng.gen_range(0..children.len());
+       return self.rng.gen_range(0..children.len());
     }
 
     pub fn expand_tree_once(&self, tree: &DerivationTree) -> DerivationTree {
