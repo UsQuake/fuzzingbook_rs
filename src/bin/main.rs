@@ -3,7 +3,7 @@ use fuzzingbook_rs::grammar::str_helper::*;
 use fuzzingbook_rs::{grammar::*, grammar_fuzzer};
 use std::collections::*;
 use fuzzingbook_rs::grammar_fuzzer::*;
-use regex::Regex;
+use std::time::{Duration, Instant};
 fn main() {
     let mut rd = rand::thread_rng();
     let mut expr_grammar:Grammar = HashMap::new();
@@ -103,9 +103,17 @@ expr_grammar.insert("<digit>".to_string(), range_chars_as_str(CharRange::Digit))
     xml_grammar.insert("<letter>".to_string(), letter_vec);
     xml_grammar.insert("<letter-space>".to_string(),letter_space_vec);
 
-    let mut f = GrammarsFuzzer::new(&xml_grammar,"<start>",100,100, Union::OnlyA(false));
+    let mut f = GrammarsFuzzer::new(&expr_grammar,"<start>",0,20, Union::OnlyA(false));
 
-    let k = f.fuzz(&mut rd);
-    println!("{k}");
+    let mut x_y_s = BTreeMap::new();
+    for _ in 0..50{
+        let now = Instant::now();
+        let k = f.fuzz(&mut rd);
+        x_y_s.insert(k.len(), now.elapsed().as_secs_f64());
+    }
+    println!("{:?}", x_y_s)
+
+    
+   
         
 }
