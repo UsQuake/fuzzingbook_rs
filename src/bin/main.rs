@@ -1,6 +1,6 @@
 use fuzzingbook_rs::grammar::str_helper::*;
 use fuzzingbook_rs::grammar::*;
-use std::{collections::*};
+use std::{collections::*, time::{SystemTime, UNIX_EPOCH}};
 use fuzzingbook_rs::grammar_fuzzer::*;
 use std::time::{Duration, Instant};
 
@@ -103,14 +103,16 @@ expr_grammar.insert("<digit>".to_string(), range_chars_as_str(CharRange::Digit))
     xml_grammar.insert("<letter>".to_string(), letter_vec);
     xml_grammar.insert("<letter-space>".to_string(),letter_space_vec);
 
-    let mut f = GrammarsFuzzer::new( &expr_grammar,"<start>",15,15, Union::OnlyA(true));
-
+    let mut f = GrammarsFuzzer::new( &expr_grammar,"<start>",0,20, Union::OnlyA(false));
     {
-        let count: u8 = 1;
+        let count: u8 = 50;
         let mut x_y_s = BTreeMap::new();
+        //let mut rand_seed = (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() & ((1<<65) - 1)) as u64;
+        let mut rand_seed = 6862104321675293962;
+        let initial_seed_copy: u64 = rand_seed.clone();
         for _ in 0..count{
             let now = Instant::now();
-            let fuzzed_input = f.fuzz();
+            let fuzzed_input = f.fuzz(&mut rand_seed);
             let elapsed = now.elapsed().as_secs_f64();
             x_y_s.insert(fuzzed_input.len(), (elapsed, fuzzed_input));
         }
@@ -122,7 +124,7 @@ expr_grammar.insert("<digit>".to_string(), range_chars_as_str(CharRange::Digit))
         let avg = i / count as f64;
         println!("avg: {avg}"); 
         if let Some((size, (time, value))) = x_y_s.pop_last(){
-            println!("max size: {size}\nmax elapsed_time: {time}\nlongest fuzzed input: {value}");
+            println!("max size: {size}\nmax elapsed_time: {time}\nseed: {initial_seed_copy}\nlongest fuzzed input: {value}");
         }
     }
 

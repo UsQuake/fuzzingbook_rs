@@ -4,12 +4,9 @@ mod test;
 use self::options::{exp_opts, Option};
 
 use lazy_static::lazy_static;
-use rand::{Rng, SeedableRng};
-//use rayon::prelude::*;
 use regex::Regex;
 use std::{
-    collections::{BTreeSet, HashMap},
-    time::SystemTime, time::UNIX_EPOCH
+    collections::{BTreeSet, HashMap}, hash::{DefaultHasher, Hash, Hasher}, time::{SystemTime, UNIX_EPOCH}
 };
 
 // #[derive(Clone)]
@@ -421,7 +418,12 @@ fn trim_grammar<'l_use>(grammar: &Grammar<'l_use>, start_symbol: &'l_use str) ->
 
     return new_grammar;
 }
-
+pub fn get_rand(seed: &mut u64) -> usize{
+    let mut hasher = DefaultHasher::new();
+    seed.hash(&mut hasher);
+    *seed = hasher.finish();
+    return (*seed>> 32) as usize;
+}
 pub fn simple_grammar_fuzzer<'l_use>(
     syntax: &Grammar,
     start_symbol: &'l_use str,
@@ -431,22 +433,20 @@ pub fn simple_grammar_fuzzer<'l_use>(
 ) -> Result<String, &'static str> {
     let mut term = String::from(start_symbol);
     let mut expansion_trials = 0;
-    let timestamp = SystemTime::now()
+    let mut timestamp = (SystemTime::now()
     .duration_since(UNIX_EPOCH)
     .unwrap()
-    .as_millis();
-    // 밀리초 단위의 타임스탬프를 시드로 사용하여 간단한 의사 난수 생성기를 초기화합니다.
-    let mut rng = rand::rngs::StdRng::seed_from_u64(timestamp as u64);
+    .as_millis() & ((1 << 33) - 1)) as u64;
     
     while nonterminals(&Union::OnlyA(term.clone())).len() > 0 {
         let sub_nonterminals = term.clone();
         let none_terminals = nonterminals(&Union::OnlyA(sub_nonterminals.clone()));
-        let rand_var = rng.gen_range(0..none_terminals.len());
+        let rand_var = get_rand(&mut timestamp) % none_terminals.len();
         let symbol_to_expand = &none_terminals[rand_var];
 
         let expansions = &syntax[symbol_to_expand];
 
-        let rand_var2 = rng.gen_range(0..expansions.len());
+        let rand_var2 = get_rand(&mut timestamp) % expansions.len();
         let expansion = &expansions[rand_var2];
 
         let expansion = match expansion {
