@@ -419,16 +419,18 @@ pub fn expansion_to_children<'l_use>(expansion: &Expansion<'l_use>) -> Vec<Deriv
         for mat in RE_NONTERMINAL.find_iter(&expansion) {
             let start_index = mat.start();
             let matched_text = mat.as_str();
-            strings.push(&matched_text);
             let unmatched_text = &expansion[last_match_end..start_index];
-            strings.push(&unmatched_text);
+            if !unmatched_text.is_empty(){
+                strings.push(&unmatched_text);
+            }
+            strings.push(&matched_text);
             last_match_end = mat.end();
         }
         let unmatched_text_after_last_match = &expansion[last_match_end..];
         if !unmatched_text_after_last_match.is_empty(){
             strings.push(&unmatched_text_after_last_match);
         }
-
+        dbg!(&strings);
     let non_empty_strings: Vec<String> = strings
         //.par_iter()
         .iter()

@@ -103,11 +103,12 @@ expr_grammar.insert("<digit>".to_string(), range_chars_as_str(CharRange::Digit))
     xml_grammar.insert("<letter>".to_string(), letter_vec);
     xml_grammar.insert("<letter-space>".to_string(),letter_space_vec);
 
-    let mut f = GrammarsFuzzer::new( &expr_grammar,"<start>",0,15, Union::OnlyA(false));
+    let mut f = GrammarsFuzzer::new( &expr_grammar,"<start>",15,15, Union::OnlyA(true));
 
     {
+        let count: u8 = 1;
         let mut x_y_s = BTreeMap::new();
-        for _ in 0..50{
+        for _ in 0..count{
             let now = Instant::now();
             let fuzzed_input = f.fuzz();
             let elapsed = now.elapsed().as_secs_f64();
@@ -118,7 +119,7 @@ expr_grammar.insert("<digit>".to_string(), range_chars_as_str(CharRange::Digit))
         for (_,(elapsed, _)) in &x_y_s{
             i += elapsed;
         }
-        let avg = i / 50.0;
+        let avg = i / count as f64;
         println!("avg: {avg}"); 
         if let Some((size, (time, value))) = x_y_s.pop_last(){
             println!("max size: {size}\nmax elapsed_time: {time}\nlongest fuzzed input: {value}");
