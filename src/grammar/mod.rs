@@ -5,8 +5,9 @@ use self::options::{exp_opts, Option};
 
 use lazy_static::lazy_static;
 use regex::Regex;
+use rustc_hash::FxHasher;
 use std::{
-    collections::{BTreeSet, HashMap}, hash::{DefaultHasher, Hash, Hasher}, time::{SystemTime, UNIX_EPOCH}
+    collections::{BTreeSet, HashMap}, hash::{Hash, Hasher}, time::{SystemTime, UNIX_EPOCH}
 };
 
 // #[derive(Clone)]
@@ -416,7 +417,7 @@ fn trim_grammar<'l_use>(grammar: &Grammar<'l_use>, start_symbol: &'l_use str) ->
     return new_grammar;
 }
 pub fn get_rand(seed: &mut u64) -> usize{
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = FxHasher::default();
     seed.hash(&mut hasher);
     *seed = hasher.finish();
     return (*seed>> 32) as usize;
