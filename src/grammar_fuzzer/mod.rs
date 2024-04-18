@@ -178,27 +178,25 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
     pub fn choose_tree_expansion(
         &self,
         seed: &mut u64,
-        tree: &DerivationTree,
         children: &Vec<&DerivationTree>,
     ) -> usize {
        
         return get_rand(seed) % children.len();
     }
 
-    pub fn expand_tree_once(&mut self, seed: &mut u64, tree: &DerivationTree) -> DerivationTree {
+    pub fn expand_tree_once(&mut self, seed: &mut u64, tree: DerivationTree) -> DerivationTree {
         
-        match &(&tree).children {
+        match tree.children {
             None => self.expand_node.unwrap()(self, seed, &tree),
-            Some(children) =>{
-                let mut updated_children = children.clone();
+            Some(mut children) =>{
 
-                let expandable_children: Vec<&DerivationTree> = updated_children
+                let mut expandable_children: Vec<&DerivationTree> = children
                     .iter()
                     .filter(|refref_child| 
                         Self::any_possible_expansions(refref_child))
                     .collect();
                
-                let index_map: Vec<usize> = updated_children
+                let index_map: Vec<usize> = children
                 .iter()
                 .enumerate()
                 .filter(|(_,c)| {
@@ -206,14 +204,13 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
                 })
                 .map(|(i, _)| i)
                 .collect();
-            let child_to_be_expanded = self.choose_tree_expansion(seed,&tree, &expandable_children);
 
-            updated_children[index_map[child_to_be_expanded]] =
-                self.expand_tree_once(seed, &expandable_children[child_to_be_expanded]);
+            let child_to_be_expanded = self.choose_tree_expansion(seed,&expandable_children);
+            children[index_map[child_to_be_expanded]] = self.expand_tree_once(seed,  children[index_map[child_to_be_expanded]].clone());
 
             DerivationTree{
                 symbol: tree.symbol.clone(),
-                children: Some(updated_children)
+                children: Some(children)
             }
             }
         }
@@ -358,7 +355,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         while (limit.is_none() || self.possible_expansions(&tree) < limit.unwrap())
         &&Self::any_possible_expansions(&tree)
         {   
-            tree = self.expand_tree_once(seed,&tree);
+            tree = self.expand_tree_once(seed,tree);
             self.log_tree(&tree)
         }
 
