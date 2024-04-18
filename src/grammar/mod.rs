@@ -9,14 +9,15 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use rustc_hash::FxHasher;
 use std::{
-    collections::{BTreeSet, HashMap}, hash::{Hash, Hasher}, time::{Instant, SystemTime, UNIX_EPOCH}
+    collections::{BTreeSet, HashMap},
+    hash::{Hash, Hasher},
+    time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
 // #[derive(Clone)]
 // pub enum Any{
 //     Usize(usize), Str(String), Tuple((Vec<String>, String))
 // }
-
 
 #[derive(Clone)]
 pub enum Union<A, B> {
@@ -33,8 +34,7 @@ lazy_static! {
     pub static ref RE_EXTENDED_NONTERMINAL: Regex = Regex::new(r"(<[^<> ]*>[?+*])").unwrap();
 }
 
-lazy_static!{
-}
+lazy_static! {}
 static START_SYMBOL: &'static str = "<start>";
 
 pub fn is_nonterminal<'l_use>(symbol: &'l_use str) -> bool {
@@ -44,8 +44,7 @@ pub fn nonterminals<'l_use>(expansion: &Expansion<'l_use>) -> Vec<String> {
     let expansion = match expansion {
         Union::OnlyA(only_str) => only_str.to_string(),
         Union::OnlyB(str_and_opt) => str_and_opt.0.to_string(),
-    };      
-
+    };
 
     let ret = RE_NONTERMINAL
         .find_iter(&expansion)
@@ -420,11 +419,11 @@ fn trim_grammar<'l_use>(grammar: &Grammar<'l_use>, start_symbol: &'l_use str) ->
 
     return new_grammar;
 }
-pub fn get_rand(seed: &mut u64) -> usize{
+pub fn get_rand(seed: &mut u64) -> usize {
     let mut hasher = FxHasher::default();
     seed.hash(&mut hasher);
     *seed = hasher.finish();
-    return (*seed>> 32) as usize;
+    return (*seed >> 32) as usize;
 }
 pub fn simple_grammar_fuzzer<'l_use>(
     syntax: &Grammar,
@@ -436,17 +435,16 @@ pub fn simple_grammar_fuzzer<'l_use>(
     let mut term = String::from(start_symbol);
     let mut expansion_trials = 0;
     let mut timestamp = (SystemTime::now()
-    .duration_since(UNIX_EPOCH)
-    .unwrap()
-    .as_millis() & ((1 << 33) - 1)) as u64;
-
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis()
+        & ((1 << 33) - 1)) as u64;
 
     while nonterminals(&Union::OnlyA(term.clone())).len() > 0 {
-
         let sub_nonterminals = term.clone();
- 
+
         let none_terminals = nonterminals(&Union::OnlyA(sub_nonterminals.clone()));
-  
+
         let rand_var = get_rand(&mut timestamp) % none_terminals.len();
         let symbol_to_expand = &none_terminals[rand_var];
 
