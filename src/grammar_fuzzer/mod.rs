@@ -3,7 +3,7 @@ use self::options::exp_string;
 use crate::grammar::*;
 use lazy_static::lazy_static;
 use rayon::iter::IntoParallelRefIterator;
-use rustc_hash::FxHasher;
+use rustc_hash::{FxHashMap, FxHasher};
 mod test;
 
 #[derive(Clone)]
@@ -49,7 +49,7 @@ pub struct GrammarsFuzzer<'l_use> {
     max_nonterminals: usize,   //= 10,
     log: Union<bool, usize>,
     expand_node: std::option::Option<fn(&Self, &mut u64, &DerivationTree) -> DerivationTree>,
-    derivation_tree: std::option::Option<DerivationTree>,
+    derivation_tree: std::option::Option<DerivationTree>
 }
 
 impl<'l_use> GrammarsFuzzer<'l_use> {
@@ -179,7 +179,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         &self,
         seed: &mut u64,
         tree: &DerivationTree,
-        children: &Vec<DerivationTree>,
+        children: &Vec<&DerivationTree>,
     ) -> usize {
        
         return get_rand(seed) % children.len();
@@ -192,18 +192,17 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             Some(children) =>{
                 let mut updated_children = children.clone();
 
-                let expandable_children: Vec<DerivationTree> = updated_children
+                let expandable_children: Vec<&DerivationTree> = updated_children
                     .iter()
                     .filter(|refref_child| 
                         Self::any_possible_expansions(refref_child))
-                    .map(|refref_child| refref_child.clone())
                     .collect();
                
                 let index_map: Vec<usize> = updated_children
                 .iter()
                 .enumerate()
                 .filter(|(_,c)| {
-                    expandable_children.iter().find(|expandable_children| **expandable_children == **c).is_some()
+                    expandable_children.iter().find(|expandable_children| ***expandable_children == **c).is_some()
                 })
                 .map(|(i, _)| i)
                 .collect();
