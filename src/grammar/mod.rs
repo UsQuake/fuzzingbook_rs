@@ -1,13 +1,15 @@
 pub mod options;
 pub mod str_helper;
 mod test;
+use crate::grammar_fuzzer::{CALL_COUNT, ELAPSED};
+
 use self::options::{exp_opts, Option};
 
 use lazy_static::lazy_static;
 use regex::Regex;
 use rustc_hash::FxHasher;
 use std::{
-    collections::{BTreeSet, HashMap}, hash::{Hash, Hasher}, time::{SystemTime, UNIX_EPOCH}
+    collections::{BTreeSet, HashMap}, hash::{Hash, Hasher}, time::{Instant, SystemTime, UNIX_EPOCH}
 };
 
 // #[derive(Clone)]
@@ -42,12 +44,14 @@ pub fn nonterminals<'l_use>(expansion: &Expansion<'l_use>) -> Vec<String> {
     let expansion = match expansion {
         Union::OnlyA(only_str) => only_str.to_string(),
         Union::OnlyB(str_and_opt) => str_and_opt.0.to_string(),
-    };
+    };      
+
 
     let ret = RE_NONTERMINAL
         .find_iter(&expansion)
         .map(|m| m.as_str().to_string())
         .collect();
+
     return ret;
 }
 pub fn extended_nonterminals<'l_use>(expansion: &Expansion<'l_use>) -> Vec<String> {
@@ -435,10 +439,14 @@ pub fn simple_grammar_fuzzer<'l_use>(
     .duration_since(UNIX_EPOCH)
     .unwrap()
     .as_millis() & ((1 << 33) - 1)) as u64;
-    
+
+
     while nonterminals(&Union::OnlyA(term.clone())).len() > 0 {
+
         let sub_nonterminals = term.clone();
+ 
         let none_terminals = nonterminals(&Union::OnlyA(sub_nonterminals.clone()));
+  
         let rand_var = get_rand(&mut timestamp) % none_terminals.len();
         let symbol_to_expand = &none_terminals[rand_var];
 

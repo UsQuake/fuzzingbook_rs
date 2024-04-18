@@ -103,9 +103,9 @@ expr_grammar.insert("<digit>".to_string(), range_chars_as_str(CharRange::Digit))
     xml_grammar.insert("<letter>".to_string(), letter_vec);
     xml_grammar.insert("<letter-space>".to_string(),letter_space_vec);
 
-    let mut f = GrammarsFuzzer::new( &expr_grammar,"<start>",0,10, Union::OnlyA(false));
+    let mut f = GrammarsFuzzer::new( &expr_grammar,"<start>",0,20, Union::OnlyA(false));
     unsafe {
-        let count: u128 = 50;
+        let count: u128 = 1;
         let mut x_y_s = BTreeMap::new();
         //let mut rand_seed = (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() & ((1<<65) - 1)) as u64;
         let mut rand_seed = 17526186317047798642;
@@ -113,21 +113,25 @@ expr_grammar.insert("<digit>".to_string(), range_chars_as_str(CharRange::Digit))
         for _ in 0..count{
             let now = Instant::now();
             let mutated_seed_copy: u64 = rand_seed.clone();
-            let fuzzed_input = f.fuzz(&mut rand_seed);
+            let testcase = f.fuzz(&mut rand_seed);
+            //let testcase = simple_grammar_fuzzer(&expr_grammar,"<start>", 15, 30, false).unwrap();
             let elapsed = now.elapsed().as_millis();
-            x_y_s.insert(fuzzed_input.len(), (elapsed, fuzzed_input, mutated_seed_copy));
+            x_y_s.insert(testcase.len(), (elapsed, testcase, mutated_seed_copy));
         }
-    
+     //17545 2.4s
+
+
+
         let mut i = 0;
         for (_,(elapsed, _, _)) in &x_y_s{
             i += elapsed;
         }
         let avg = i / count;
-        println!("avg: {avg}"); 
+        println!("average elapsed time: {avg}ms"); 
         if let Some((size, (time, value, seed))) = x_y_s.pop_last(){
             let elapsed_time_in_ms = ELAPSED / 1000000;
             let call_count = CALL_COUNT;
-            println!("max size: {size}\nmax elapsed_time: {time}ms\ninstrumented function call count: {call_count}\ninstrumented function elapsed time: {elapsed_time_in_ms}ms\nmutated seed: {seed}\ninitial seed: {initial_seed_copy}\nlongest fuzzed input: {value}");
+            println!("maximum testcase length: {size}\nmaximum testcase generation time: {time}ms\ninstrumented function call count: {call_count}\ninstrumented function elapsed time: {elapsed_time_in_ms}ms\nmutated seed: {seed}\ninitial seed: {initial_seed_copy}\nlongest testcase: {value}");
         }
     }
 

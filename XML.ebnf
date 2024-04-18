@@ -34,7 +34,6 @@ Misc              ::= Comment | PI | S
 [30]  extSubset         ::= TextDecl? extSubsetDecl
 [31]  extSubsetDecl     ::= ( markupdecl | conditionalSect | DeclSep)*
 [32]  SDDecl            ::= #x20+ 'standalone' Eq (("'" ('yes' | 'no') "'") | ('"' ('yes' | 'no') '"'))
-(Productions 33 through 38 have been removed.)
 [39]  element           ::= EmptyElemTag
 [40]  STag              ::= '<' Name (S Attribute)* S? '>'
 [41]  Attribute         ::= Name Eq AttValue

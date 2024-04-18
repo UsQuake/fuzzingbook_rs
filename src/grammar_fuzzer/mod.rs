@@ -2,13 +2,14 @@ use std::{collections::{hash_map::DefaultHasher, BTreeSet, HashSet}, hash::{Hash
 use self::options::exp_string;
 use crate::grammar::*;
 use lazy_static::lazy_static;
+use rayon::iter::IntoParallelRefIterator;
 use rustc_hash::FxHasher;
 mod test;
 
 #[derive(Clone)]
 pub struct DerivationTree {
     pub symbol: String,
-    pub children: std::option::Option<Vec<Box<DerivationTree>>>,
+    pub children: std::option::Option<Vec<DerivationTree>>,
 }
 
 impl PartialEq for DerivationTree {
@@ -21,23 +22,23 @@ pub static mut CALL_COUNT: u64 = 0;
 lazy_static! {
     pub static ref DERIVATION_TREE: DerivationTree = DerivationTree {
         symbol: "<start>".to_string(),
-        children: Some(vec![Box::from(DerivationTree {
+        children: Some(vec![DerivationTree {
             symbol: "<expr>".to_string(),
             children: Some(vec![
-                Box::new(DerivationTree {
+                DerivationTree {
                     symbol: "<expr>".to_string(),
                     children: None
-                }),
-                Box::new(DerivationTree {
+                },
+                DerivationTree {
                     symbol: " + ".to_string(),
                     children: Some(Vec::new())
-                }),
-                Box::new(DerivationTree {
+                },
+                DerivationTree {
                     symbol: "<term>".to_string(),
                     children: None
-                })
+                }
             ])
-        })])
+        }])
     };
 }
 
@@ -105,13 +106,10 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
 
     fn process_chosen_children(
         &self,
-        chosen_children: &Vec<DerivationTree>,
+        chosen_children: Vec<DerivationTree>,
         expansion: &Expansion,
-    ) -> Vec<Box<DerivationTree>> {
-        return chosen_children
-            .iter()
-            .map(|subtree| Box::new(subtree.clone()))
-            .collect();
+    ) -> Vec<DerivationTree> {
+        return chosen_children;
     }
     pub fn expand_node_randomly(
         &self,
@@ -142,7 +140,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         let index = self.choose_node_expansion(seed, node, &children_alternatives);
         let chosen_children = &children_alternatives[index];
 
-        let chosen_children = self.process_chosen_children(chosen_children, &expansions[index]);
+        let chosen_children = self.process_chosen_children(chosen_children.to_vec(), &expansions[index]);
 
         return DerivationTree {
             symbol: symbol.clone(),
@@ -151,32 +149,37 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
     }
 
     pub fn possible_expansions(&self, node: &DerivationTree) -> usize {
-        match &(&node).children{
+       
+       let res =  match &(&node).children{
             None => 1,
             Some(children) =>
             children.iter().fold(0, |acc, child_node| {
                 acc + self.possible_expansions(child_node)
             })
-        }
-
+        };
+ 
+        res
     }
-    pub fn any_possible_expansions(&self, node: &DerivationTree) -> bool {      
-        match &(&node).children{
+    pub fn any_possible_expansions(node: &DerivationTree) -> bool {  
+ 
+        let res = match &(&node).children{
             Some(node_children)  =>{
                 node_children
                     .iter()
                     .any(|child| {
-                    self.any_possible_expansions(child)})
+                    Self::any_possible_expansions(child)})
             },
             None => {true}
-        }  
+        } ;
+
+        res 
     }
 
     pub fn choose_tree_expansion(
         &self,
         seed: &mut u64,
         tree: &DerivationTree,
-        children: &Vec<Box<DerivationTree>>,
+        children: &Vec<DerivationTree>,
     ) -> usize {
        
         return get_rand(seed) % children.len();
@@ -184,20 +187,21 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
 
     pub fn expand_tree_once(&mut self, seed: &mut u64, tree: &DerivationTree) -> DerivationTree {
         let mut tree = tree.clone();
-
+        
         match &(&tree).children {
             None => self.expand_node.unwrap()(self, seed, &tree),
             Some(children) =>{
+           
 
                 let mut updated_children = children.clone();
-                let expandable_children: Vec<Box<DerivationTree>> = updated_children
+
+                let expandable_children: Vec<DerivationTree> = updated_children
                     .iter()
                     .filter(|refref_child| 
-                        refref_child.children.is_none() ||
-                        self.any_possible_expansions(refref_child))
+                        Self::any_possible_expansions(refref_child))
                     .map(|refref_child| refref_child.clone())
                     .collect();
-
+               
                 let index_map: Vec<usize> = updated_children
                 .iter()
                 .enumerate()
@@ -206,12 +210,12 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
                 })
                 .map(|(i, _)| i)
                 .collect();
-    
             let child_to_be_expanded = self.choose_tree_expansion(seed,&tree, &expandable_children);
-    
+
             updated_children[index_map[child_to_be_expanded]] =
-                Box::new(self.expand_tree_once(seed, &expandable_children[child_to_be_expanded]));
+                self.expand_tree_once(seed, &expandable_children[child_to_be_expanded]);
             tree.children = Some(updated_children);
+
             tree
             }
         }
@@ -258,7 +262,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
                 )
             })
             .collect();
-        
+
         let costs: Vec<_> = children_alternatives_with_cost
             .iter()
             .map(|(_, cost, _)| cost)
@@ -268,7 +272,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         let chosen_cost = costs
             .iter()
             .fold(costs[0], |chosen_cost, x| choose(chosen_cost, *x));
-        
+ 
         let children_alternatives_with_chosen_cost: Vec<_> = children_alternatives_with_cost
             .iter()
             .filter(|(_, child_cost, _)| {
@@ -289,8 +293,8 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         let index = self.choose_node_expansion(seed, node, &children_with_chosen_cost);
         let chosen_children = &children_with_chosen_cost[index];
         let chosen_expansion = expansion_with_chosen_cost[index];
-        let chosen_children = self.process_chosen_children(&chosen_children, chosen_expansion);
- 
+        let chosen_children = self.process_chosen_children(chosen_children.to_vec(), chosen_expansion);
+
         return DerivationTree {
             symbol: symbol,
             children: Some(chosen_children),
@@ -302,6 +306,8 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         seed: &mut u64,
         node: &DerivationTree,
     ) -> DerivationTree {
+       
+
         match self.log {
             Union::OnlyA(should_log) => {
                 if should_log {
@@ -326,6 +332,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             }
             Union::OnlyB(_) => {}
         }
+
         self.expand_node_by_cost(seed, node, f64::max)
     }
 
@@ -352,9 +359,8 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
        
 
         while (limit.is_none() || self.possible_expansions(&tree) < limit.unwrap())
-        && self.any_possible_expansions(&tree)
-        {
-                  
+        &&Self::any_possible_expansions(&tree)
+        {   
             tree = self.expand_tree_once(seed,&tree);
             self.log_tree(&tree)
         }
@@ -374,7 +380,7 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             Some(self.min_nonterminals),
         );
 
-     
+
         tree = self.expand_tree_with_strategy(
                 seed,
             &tree,
@@ -411,10 +417,11 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
 }
 
 pub fn get_rand(seed: &mut u64) -> usize{
-    
+
     let mut hasher = FxHasher::default();
     seed.hash(&mut hasher);
     *seed = hasher.finish();
+
     return (*seed>> 32) as usize;
 }
 
@@ -445,7 +452,7 @@ pub fn expansion_to_children<'l_use>(expansion: &Expansion<'l_use>) -> Vec<Deriv
             strings.push(&unmatched_text_after_last_match);
         }
 
-
+ 
     let result = strings
         .iter()
         .map(|s| {
