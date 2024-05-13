@@ -27,7 +27,7 @@ fn main() {
     let mut i = 0;
     for (_, (elapsed, testcase, _)) in &x_y_s {
         i += elapsed;
-        println!("{}", replace_scope_with_tab(testcase));
+        println!("{}", replace_scope_with_indent(testcase));
     }
     let avg = i / count;
     println!("average elapsed time: {avg}ms");
