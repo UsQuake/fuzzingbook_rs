@@ -7,13 +7,13 @@ pub fn get_python_grammar() -> Grammar<'static>{
     let mut python_grammar: Grammar = HashMap::new();
     python_grammar.insert(
         "<start>".to_string(),
-        vec![Union::OnlyA("<statement>\r\n".to_string())],
+        vec![Union::OnlyA("<statement>".to_string())],
     );
     python_grammar.insert(
         "<statement>".to_string(),
-        vec![Union::OnlyA("<for-statement>".to_string()),
-        Union::OnlyA("<if-statement>".to_string()),
-        Union::OnlyA("<assign-statement>".to_string()),
+        vec![Union::OnlyA("\n<for-statement>".to_string()),
+        Union::OnlyA("\n<if-statement>".to_string()),
+        Union::OnlyA("\n<assign-statement>".to_string()),
         ],
     );
     python_grammar.insert("<if-statement>".to_string(),

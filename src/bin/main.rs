@@ -1,4 +1,5 @@
 use fuzzingbook_rs::grammar::predef_grammars::*;
+use fuzzingbook_rs::grammar::str_helper::*;
 use fuzzingbook_rs::grammar::*;
 use fuzzingbook_rs::grammar_fuzzer::*;
 use std::time::{Duration, Instant};
@@ -26,7 +27,7 @@ fn main() {
     let mut i = 0;
     for (_, (elapsed, testcase, _)) in &x_y_s {
         i += elapsed;
-        println!("{testcase}");
+        println!("{}", replace_scope_with_tab(testcase));
     }
     let avg = i / count;
     println!("average elapsed time: {avg}ms");

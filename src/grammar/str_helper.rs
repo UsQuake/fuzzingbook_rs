@@ -29,3 +29,23 @@ pub fn range_chars_as_str<'l_use>(type_of_range: CharRange) -> Vec<Expansion<'l_
         }
     }
 }
+
+pub fn replace_scope_with_indent(target:&String) -> String {
+    let mut result = target.clone();
+    let mut tab_count = 0;
+    let mut added_offset = 0;
+    for (idx, ch) in target.chars().enumerate(){
+        if ch == '{'{
+            tab_count +=1;
+        } else if ch == '}'{
+            tab_count -= 1;
+        }else if ch == '\n'{
+            for _ in 0..tab_count{
+                result.insert(idx + 1+ added_offset, ' ');
+                added_offset += 1;
+            }
+        }
+    }
+    result = result.replace("{", "");
+    result.replace("}", "")
+}
