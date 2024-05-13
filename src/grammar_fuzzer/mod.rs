@@ -1,13 +1,10 @@
 use self::options::exp_string;
 use crate::grammar::*;
 use lazy_static::lazy_static;
-use rayon::iter::IntoParallelRefIterator;
-use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
+use rustc_hash::FxHasher;
 use std::{
-    collections::{hash_map::DefaultHasher, BTreeSet, HashSet},
+    collections::{BTreeSet, HashSet},
     hash::{Hash, Hasher},
-    rc::Rc,
-    time::Instant,
 };
 mod test;
 

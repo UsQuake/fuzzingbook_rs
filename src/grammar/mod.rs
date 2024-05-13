@@ -1,7 +1,7 @@
 pub mod options;
 pub mod str_helper;
+pub mod predef_grammars;
 mod test;
-use crate::grammar_fuzzer::{CALL_COUNT, ELAPSED};
 
 use self::options::{exp_opts, Option};
 

@@ -752,12 +752,12 @@ def expansion_to_children(expansion: Expansion) -> List[DerivationTree]:
 
 import time
 
-trials = 50
+trials = 1
 xs = []
 ys = []
 zs = []
 ks = []
-f = GrammarFuzzer(EXPR_GRAMMAR, max_nonterminals=20)
+f = GrammarFuzzer(EXPR_GRAMMAR, max_nonterminals=400)
 for i in range(trials):
     instrumented_time = 0
     start = time.time()
