@@ -7,22 +7,26 @@ pub fn get_python_grammar() -> Grammar<'static>{
     let mut python_grammar: Grammar = HashMap::new();
     python_grammar.insert(
         "<start>".to_string(),
-        vec![Union::OnlyA("start\n<statements>\nend".to_string())],
+        vec![Union::OnlyA("<statements>".to_string())],
     );
     python_grammar.insert(
         "<statements>".to_string(),
-        vec![Union::OnlyA("\n<statement>".to_string())],
+        vec![
+        Union::OnlyA("<statement>".to_string()),
+        Union::OnlyA("<statements>\n<statements>".to_string()),
+        ],
     );
     python_grammar.insert(
         "<statement>".to_string(),
-        vec![Union::OnlyA("<for-statement>".to_string()),
+        vec![
+        Union::OnlyA("<for-statement>".to_string()),
         Union::OnlyA("<if-statement>".to_string()),
         Union::OnlyA("<assign-statement>".to_string()),
-        Union::OnlyA("<statement>".to_string())
+        Union::OnlyA("<call-statement>".to_string()),
         ],
     );
     python_grammar.insert("<if-statement>".to_string(),
-    vec![Union::OnlyA("if <bool-expr>:{<statements>}".to_string())]
+    vec![Union::OnlyA("if <bool-expr>:{\n<statements>}".to_string())]
     );
     python_grammar.insert("<bool-expr>".to_string(),
     vec![
@@ -35,13 +39,27 @@ pub fn get_python_grammar() -> Grammar<'static>{
     ]
     );
     python_grammar.insert("<for-statement>".to_string(),
-    vec![Union::OnlyA("for <letter> in range(<integer>):{<statements>}".to_string())]
+    vec![Union::OnlyA("for @iter_var in range(<integer>, <integer>):{\n<statements>}".to_string())]
     );
     python_grammar.insert("<variable>".to_string(),
-    vec![Union::OnlyA("v<digit>".to_string())]
+    vec![Union::OnlyA("@var".to_string())]
     );
     python_grammar.insert("<assign-statement>".to_string(),
-    vec![Union::OnlyA("<variable> = <integer>".to_string())]
+    vec![Union::OnlyA("<variable> = <digit>".to_string())]
+    );
+    python_grammar.insert("<call-statement>".to_string(),
+    vec![Union::OnlyA("<func-expr>".to_string())]
+    );
+    python_grammar.insert("<func-expr>".to_string(),
+    vec![Union::OnlyA("<func-ident>(<func-vars>)".to_string())]
+    );
+    python_grammar.insert("<func-ident>".to_string(),
+    vec![Union::OnlyA("print".to_string())]
+    );
+    python_grammar.insert("<func-vars>".to_string(),
+    vec![Union::OnlyA("<variable>".to_string()),
+            Union::OnlyA("<func-vars>,<func-vars>".to_string()),
+    ]
     );
     python_grammar.insert(
         "<expr>".to_string(),
