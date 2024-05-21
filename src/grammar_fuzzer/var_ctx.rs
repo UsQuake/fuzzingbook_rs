@@ -122,10 +122,6 @@ pub fn ir_to_ctx(ir_code: &String, seed: &mut u64 /* , predefined_ctx:Context*/)
                         result_ir_code[idx] = new_var_name.clone();
                         current_vars.insert(new_var_name, HashSet::from(["Primitive".to_string()]));
                     } else if var_traits.contains("ForRange") {
-                        if &new_var_name == "val5"{
-                            dbg!(&current_vars);
-                        }
-                     
                         result_ir_code[idx] = new_var_name.clone();
                         current_vars.insert(new_var_name, HashSet::from(["Primitive".to_string()]));
                     } else {
