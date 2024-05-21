@@ -73,8 +73,8 @@ pub fn ir_to_ctx(ir_code: &String, seed: &mut u64 /* , predefined_ctx:Context*/)
     let mut fuzz_arr = GrammarsFuzzer::new(
         &get_array_grammar(),
         "<array>",
-        2,
-        2,
+        10,
+        0,
         super::Union::OnlyA(false),
     );
     let mut res_stack: Context = Vec::new();
@@ -135,10 +135,16 @@ pub fn ir_to_ctx(ir_code: &String, seed: &mut u64 /* , predefined_ctx:Context*/)
                     if referable_vars.len() != 0 {
                         let rand_num = get_rand(seed) % referable_vars.len();
                         let mut generated_statement = referable_vars[rand_num].clone() + " = ";
-                        if var_traits.contains("Primitive") || var_traits.contains("Any") {
+                        if var_traits.contains("Primitive") {
                             generated_statement = generated_statement + &fuzz_expr.fuzz(seed);
                         } else if var_traits.contains("Iterable") {
                             generated_statement = generated_statement + &fuzz_arr.fuzz(seed);
+                        } else if var_traits.contains("Any"){
+                           if rand_num as f64 / referable_vars.len() as f64 > 0.5{
+                            generated_statement = generated_statement + &fuzz_expr.fuzz(seed);
+                           }else{
+                            generated_statement = generated_statement + &fuzz_arr.fuzz(seed);
+                           }
                         }
                         result_ir_code[idx] = generated_statement;
                     } else {

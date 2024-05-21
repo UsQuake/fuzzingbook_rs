@@ -125,7 +125,7 @@ pub fn get_array_grammar() -> Grammar<'static> {
         "<elems>".to_string(),
         vec![
             Union::OnlyA("<elem>".to_string()),
-            Union::OnlyA("<elems>,<elems>".to_string()),
+            Union::OnlyA("<elems>,<elem>".to_string()),
         ],
     );
     array_grammar.insert(
