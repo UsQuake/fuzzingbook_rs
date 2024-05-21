@@ -1,6 +1,13 @@
-use std::{collections::*};
-use regex::*;
 use lazy_static::lazy_static;
+use regex::*;
+use std::collections::*;
+
+use crate::grammar::get_rand;
+
+use super::{
+    predef_grammars::{get_array_grammar, get_expr_grammar},
+    GrammarsFuzzer,
+};
 
 type Ident = String;
 type Stack<T> = Vec<T>;
@@ -12,26 +19,31 @@ type Context = Stack<Vars>;
 lazy_static! {
     pub static ref RE_VAR_TYPE_EXPR: Regex = Regex::new(r"@[^;]+;").unwrap();
 }
-fn generate_unique_var_name(already_define_vars:&Vars) ->String{
+fn generate_unique_var_name(already_define_vars: &Vars) -> String {
     let mut result = "val0".to_string();
     let mut count = 0;
-    while already_define_vars.get(&result).is_some(){
+    while already_define_vars.get(&result).is_some() {
         result = "val".to_string() + &count.to_string();
-        count = count +1;
+        count = count + 1;
     }
     result
 }
 
-fn get_var_info_from_ir(ir: &String) -> (String,HashSet<String>){
-    let mut var_info:Vec<String> = ir.clone().split_off(0).split(':').map(|m|m.to_string()).collect();
+fn get_var_info_from_ir(ir: &String) -> (String, HashSet<String>) {
+    let mut var_info: Vec<String> = ir
+        .clone()
+        .split_off(0)
+        .split(':')
+        .map(|m| m.to_string())
+        .collect();
     let (var_state, var_traits) = (&var_info[0], &var_info[1]);
     let mut var_traits = var_traits.clone();
     var_traits.pop();
-    let var_traits:HashSet<String> = var_traits.split(',').map(|m|m.to_string()).collect();
+    let var_traits: HashSet<String> = var_traits.split(',').map(|m| m.to_string()).collect();
     (var_state.clone(), var_traits)
 }
 
-fn get_splitted_ir_code(ir_code: &String)->Vec<String>{
+fn get_splitted_ir_code(ir_code: &String) -> Vec<String> {
     let mut split_ir: Vec<String> = Vec::with_capacity(8);
     let mut last_match_end = 0;
     for mat in RE_VAR_TYPE_EXPR.find_iter(&ir_code) {
@@ -50,89 +62,104 @@ fn get_splitted_ir_code(ir_code: &String)->Vec<String>{
     }
     split_ir
 }
-    pub fn ir_to_ctx(ir_code: &String/* , predefined_ctx:Context*/) -> String{
-        let mut res_stack:Context = Vec::new();
-        let mut initial_vars:Vars = HashMap::new();
-        initial_vars.insert("val0".to_string(), HashSet::from(["Primitive".to_string()]));
-        initial_vars.insert("val1".to_string(), HashSet::from(["Primitive".to_string()]));
-        initial_vars.insert("val2".to_string(), HashSet::from(["Primitive".to_string()]));
-        initial_vars.insert("val3".to_string(), HashSet::from(["Primitive".to_string()]));
-        initial_vars.insert("any0".to_string(), HashSet::from(["Any".to_string()]));
-        initial_vars.insert("any1".to_string(), HashSet::from(["Any".to_string()]));
-        initial_vars.insert("any2".to_string(), HashSet::from(["Any".to_string()]));
-        initial_vars.insert("vec0".to_string(), HashSet::from(["Iterable".to_string()]));
-        initial_vars.insert("vec1".to_string(), HashSet::from(["Iterable".to_string()]));
-        initial_vars.insert("vec2".to_string(), HashSet::from(["Iterable".to_string()]));
+pub fn ir_to_ctx(ir_code: &String, seed: &mut u64 /* , predefined_ctx:Context*/) -> String {
+    let mut fuzz_expr = GrammarsFuzzer::new(
+        &get_expr_grammar(),
+        "<start>",
+        3,
+        5,
+        super::Union::OnlyA(false),
+    );
+    let mut fuzz_arr = GrammarsFuzzer::new(
+        &get_array_grammar(),
+        "<array>",
+        2,
+        2,
+        super::Union::OnlyA(false),
+    );
+    let mut res_stack: Context = Vec::new();
+    let mut initial_vars: Vars = HashMap::new();
+    initial_vars.insert("val0".to_string(), HashSet::from(["Primitive".to_string()]));
+    initial_vars.insert("val1".to_string(), HashSet::from(["Primitive".to_string()]));
+    initial_vars.insert("val2".to_string(), HashSet::from(["Primitive".to_string()]));
+    initial_vars.insert("val3".to_string(), HashSet::from(["Primitive".to_string()]));
+    initial_vars.insert("any0".to_string(), HashSet::from(["Any".to_string()]));
+    initial_vars.insert("any1".to_string(), HashSet::from(["Any".to_string()]));
+    initial_vars.insert("any2".to_string(), HashSet::from(["Any".to_string()]));
+    initial_vars.insert("vec0".to_string(), HashSet::from(["Iterable".to_string()]));
+    initial_vars.insert("vec1".to_string(), HashSet::from(["Iterable".to_string()]));
+    initial_vars.insert("vec2".to_string(), HashSet::from(["Iterable".to_string()]));
 
-        res_stack.push(initial_vars);
-        let splitted_ir_code = get_splitted_ir_code(ir_code);
-        let mut result_ir_code = splitted_ir_code.clone();
+    res_stack.push(initial_vars);
+    let splitted_ir_code = get_splitted_ir_code(ir_code);
+    let mut result_ir_code = splitted_ir_code.clone();
+    let mut current_vars = res_stack.last().unwrap().clone();
+    for (idx, str) in splitted_ir_code.iter().enumerate() {
+        
+        if str.chars().nth(0) == Some('@') {
+            let (var_state, var_traits) = get_var_info_from_ir(str);
 
-        for (idx,str) in splitted_ir_code.iter().enumerate(){
-            let mut current_vars = res_stack.last().unwrap().clone();
-            if str.chars().nth(0) == Some('@'){
-                let (var_state, var_traits) = get_var_info_from_ir(str);
-                let referable_vars:Vec<_> = current_vars.iter().filter(
-                    |(_,already_defined_var_traits) |{
+            let referable_vars: Vec<_> = current_vars
+                .iter()
+                .filter(|(_, already_defined_var_traits)| {
                     var_traits.is_subset(already_defined_var_traits)
-                }).map(|(already_defined_var_name,_)| already_defined_var_name).collect();
-                match var_state.as_str(){
-                    "@Refer" =>{
-                        if referable_vars.len() != 0{
-                            let rand_num = 0;
-                            result_ir_code[idx] = referable_vars[rand_num].clone();
-                        }else {
-                            println!("NULL!");
-                        }
-                        
-                    },
-                    "@Define" =>{
-                        let new_var_name =generate_unique_var_name(&current_vars);
-                        if var_traits.contains("ForIter"){
-                            result_ir_code[idx] = new_var_name.clone();
-                            current_vars.insert(new_var_name, HashSet::from(["Primitive".to_string()]));
-                        } else if var_traits.contains("ForRange"){
-                            result_ir_code[idx] = new_var_name.clone();
-                            current_vars.insert(new_var_name, HashSet::from(["Primitive".to_string()]));
-                        }else{
-                            let generated_statement = new_var_name.clone() + " = " + "123";  
-                            current_vars.insert(new_var_name, HashSet::from(["Primitive".to_string()]));
-                            result_ir_code[idx] = generated_statement;
-                        }
+                })
+                .map(|(already_defined_var_name, _)| already_defined_var_name)
+                .collect();
 
-                    },
-                    "@Assign" =>{
-                        if referable_vars.len() != 0{
-                            let rand_num = 0;
-                            let mut generated_statement = referable_vars[rand_num].clone() + " = ";
-                            if var_traits.contains("Primitive") || var_traits.contains("Any"){
-                                generated_statement = generated_statement + "123"
-                            }else if var_traits.contains("Iterable"){
-                                generated_statement = generated_statement + "[1,2,3]"
-                            }
-                            result_ir_code[idx] = generated_statement;
-                        }else {
-                            println!("NULL!");
-                        }
-
+            match var_state.as_str() {
+                "@Refer" => {
+                    if referable_vars.len() != 0 {
+                        let rand_num = get_rand(seed) % referable_vars.len();
+                        result_ir_code[idx] = referable_vars[rand_num].clone();
+                    } else {
+                        println!("NULL!");
                     }
-                    _ =>{}
                 }
-            }else{
-                for ch in str.chars(){
-                    if ch == '{'{
-                        res_stack.push(current_vars.clone());
-                    }else if ch == '}'{
-                        res_stack.pop();
+                "@Define" => {
+                    let new_var_name = generate_unique_var_name(&current_vars);
+                    if var_traits.contains("ForIter") {
+                        result_ir_code[idx] = new_var_name.clone();
+                        current_vars.insert(new_var_name, HashSet::from(["Primitive".to_string()]));
+                    } else if var_traits.contains("ForRange") {
+                        if &new_var_name == "val5"{
+                            dbg!(&current_vars);
+                        }
+                     
+                        result_ir_code[idx] = new_var_name.clone();
+                        current_vars.insert(new_var_name, HashSet::from(["Primitive".to_string()]));
+                    } else {
+                        let generated_statement =
+                            new_var_name.clone() + " = " + &fuzz_expr.fuzz(seed);
+                        current_vars.insert(new_var_name, HashSet::from(["Primitive".to_string()]));
+                        result_ir_code[idx] = generated_statement;
                     }
+                }
+                "@Assign" => {
+                    if referable_vars.len() != 0 {
+                        let rand_num = get_rand(seed) % referable_vars.len();
+                        let mut generated_statement = referable_vars[rand_num].clone() + " = ";
+                        if var_traits.contains("Primitive") || var_traits.contains("Any") {
+                            generated_statement = generated_statement + &fuzz_expr.fuzz(seed);
+                        } else if var_traits.contains("Iterable") {
+                            generated_statement = generated_statement + &fuzz_arr.fuzz(seed);
+                        }
+                        result_ir_code[idx] = generated_statement;
+                    } else {
+                        println!("NULL!");
+                    }
+                }
+                _ => {}
+            }
+        } else {
+            for ch in str.chars() {
+                if ch == '{' {
+                    res_stack.push(current_vars.clone());
+                } else if ch == '}' {
+                    current_vars = res_stack.pop().unwrap();
                 }
             }
-
         }
-        result_ir_code.join("")
     }
-
-
-
-
-
+    result_ir_code.join("")
+}

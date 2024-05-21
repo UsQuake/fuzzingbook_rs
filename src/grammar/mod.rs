@@ -1,6 +1,6 @@
 pub mod options;
-pub mod str_helper;
 pub mod predef_grammars;
+pub mod str_helper;
 mod test;
 
 use self::options::{exp_opts, Option};

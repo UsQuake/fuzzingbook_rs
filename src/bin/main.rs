@@ -10,7 +10,13 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 fn main() {
-    let mut f = GrammarsFuzzer::new(&get_python_grammar(), "<start>", 0, 100, Union::OnlyA(false));
+    let mut f = GrammarsFuzzer::new(
+        &get_python_grammar(),
+        "<start>",
+        0,
+        100,
+        Union::OnlyA(false),
+    );
     let count: u128 = 1;
     let mut x_y_s = Vec::new();
     //let mut rand_seed = (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() & ((1<<65) - 1)) as u64;
@@ -28,9 +34,12 @@ fn main() {
 
     let mut i = 0;
 
-    for (_,elapsed, testcase, _) in &x_y_s {
+    for (_, elapsed, testcase, seed_copy) in &x_y_s {
         i += elapsed;
-        println!("{}", replace_scope_with_indent(&ir_to_ctx(testcase)));
+        println!(
+            "{}",
+            replace_scope_with_indent(&ir_to_ctx(testcase, &mut seed_copy.clone()))
+        );
     }
     let avg = i / count;
     println!("average elapsed time: {avg}ms");
