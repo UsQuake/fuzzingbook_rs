@@ -40,16 +40,16 @@ pub fn get_python_grammar() -> Grammar<'static>{
     );
     python_grammar.insert("<for-statement>".to_string(),
     vec![
-        Union::OnlyA("for @Define:Neumeric; in range(<integer>, <integer>):{\n<statements>}".to_string()),
-        Union::OnlyA("for @Define:SubsetOf(NextDefine); in @Refer:Iterable;:{\n<statements>}".to_string()),
+        Union::OnlyA("for @Define:ForRange; in range(<digit>):{\n<statements>}".to_string()),
+        Union::OnlyA("for @Define:ForIter; in @Refer:Iterable;:{\n<statements>}".to_string()),
     ]
     );
     python_grammar.insert("<assign-statement>".to_string(),
     vec![
         Union::OnlyA("@Assign:Any;".to_string()),
-        Union::OnlyA("@Assign:Primitive; = <digit>".to_string()),
+        Union::OnlyA("@Assign:Primitive;".to_string()),
         Union::OnlyA("@Define:Any;".to_string()),
-        Union::OnlyA("@Define:Primitive; = <digit>".to_string()),
+        Union::OnlyA("@Define:Primitive;".to_string()),
     ]
     );
     python_grammar.insert("<call-statement>".to_string(),
@@ -63,7 +63,7 @@ pub fn get_python_grammar() -> Grammar<'static>{
     );
     python_grammar.insert("<func-vars>".to_string(),
     vec![Union::OnlyA("@Refer:Any;".to_string()),
-            Union::OnlyA("<func-vars>,<func-vars>".to_string()),
+            Union::OnlyA("<func-vars>".to_string()),
     ]
     );
     python_grammar.insert(

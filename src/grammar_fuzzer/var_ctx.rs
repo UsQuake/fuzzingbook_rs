@@ -13,10 +13,11 @@ lazy_static! {
     pub static ref RE_VAR_TYPE_EXPR: Regex = Regex::new(r"@[^;]+;").unwrap();
 }
 fn generate_unique_var_name(already_define_vars:&Vars) ->String{
-    let mut result = String::with_capacity(8);
+    let mut result = "val0".to_string();
     let mut count = 0;
     while already_define_vars.get(&result).is_some(){
-        result = "var".to_string() + &count.to_string();
+        result = "val".to_string() + &count.to_string();
+        count = count +1;
     }
     result
 }
@@ -56,15 +57,19 @@ fn get_splitted_ir_code(ir_code: &String)->Vec<String>{
         initial_vars.insert("val1".to_string(), HashSet::from(["Primitive".to_string()]));
         initial_vars.insert("val2".to_string(), HashSet::from(["Primitive".to_string()]));
         initial_vars.insert("val3".to_string(), HashSet::from(["Primitive".to_string()]));
-        initial_vars.insert("val4".to_string(), HashSet::from(["Any".to_string()]));
-        initial_vars.insert("val5".to_string(), HashSet::from(["Any".to_string()]));
-        initial_vars.insert("val6".to_string(), HashSet::from(["Any".to_string()]));
+        initial_vars.insert("any0".to_string(), HashSet::from(["Any".to_string()]));
+        initial_vars.insert("any1".to_string(), HashSet::from(["Any".to_string()]));
+        initial_vars.insert("any2".to_string(), HashSet::from(["Any".to_string()]));
+        initial_vars.insert("vec0".to_string(), HashSet::from(["Iterable".to_string()]));
+        initial_vars.insert("vec1".to_string(), HashSet::from(["Iterable".to_string()]));
+        initial_vars.insert("vec2".to_string(), HashSet::from(["Iterable".to_string()]));
 
         res_stack.push(initial_vars);
         let splitted_ir_code = get_splitted_ir_code(ir_code);
         let mut result_ir_code = splitted_ir_code.clone();
-        let mut current_vars = res_stack.last().unwrap().clone();
+
         for (idx,str) in splitted_ir_code.iter().enumerate(){
+            let mut current_vars = res_stack.last().unwrap().clone();
             if str.chars().nth(0) == Some('@'){
                 let (var_state, var_traits) = get_var_info_from_ir(str);
                 let referable_vars:Vec<_> = current_vars.iter().filter(
@@ -72,24 +77,44 @@ fn get_splitted_ir_code(ir_code: &String)->Vec<String>{
                     var_traits.is_subset(already_defined_var_traits)
                 }).map(|(already_defined_var_name,_)| already_defined_var_name).collect();
                 match var_state.as_str(){
-                    "Refer" =>{
-                        let rand_num = 0;
-                        result_ir_code[idx] = referable_vars[rand_num].clone();
-                        dbg!(referable_vars);
-                    },
-                    "Define" =>{
-                        let new_var_name =generate_unique_var_name(&current_vars);
-                        current_vars.insert(new_var_name, HashSet::from(["Primitive".to_string()]));
-                    },
-                    "Assign" =>{
-                        let rand_num = 0;
-                        let mut generated_statement = referable_vars[rand_num].clone() + " = ";
-                        if var_traits.contains("Primitive"){
-                            generated_statement = generated_statement + "123"
-                        }else if var_traits.contains("Iterable"){
-                            generated_statement = generated_statement + "[1,2,3]"
+                    "@Refer" =>{
+                        if referable_vars.len() != 0{
+                            let rand_num = 0;
+                            result_ir_code[idx] = referable_vars[rand_num].clone();
+                        }else {
+                            println!("NULL!");
                         }
-                        result_ir_code[idx] = generated_statement;
+                        
+                    },
+                    "@Define" =>{
+                        let new_var_name =generate_unique_var_name(&current_vars);
+                        if var_traits.contains("ForIter"){
+                            result_ir_code[idx] = new_var_name.clone();
+                            current_vars.insert(new_var_name, HashSet::from(["Primitive".to_string()]));
+                        } else if var_traits.contains("ForRange"){
+                            result_ir_code[idx] = new_var_name.clone();
+                            current_vars.insert(new_var_name, HashSet::from(["Primitive".to_string()]));
+                        }else{
+                            let generated_statement = new_var_name.clone() + " = " + "123";  
+                            current_vars.insert(new_var_name, HashSet::from(["Primitive".to_string()]));
+                            result_ir_code[idx] = generated_statement;
+                        }
+
+                    },
+                    "@Assign" =>{
+                        if referable_vars.len() != 0{
+                            let rand_num = 0;
+                            let mut generated_statement = referable_vars[rand_num].clone() + " = ";
+                            if var_traits.contains("Primitive") || var_traits.contains("Any"){
+                                generated_statement = generated_statement + "123"
+                            }else if var_traits.contains("Iterable"){
+                                generated_statement = generated_statement + "[1,2,3]"
+                            }
+                            result_ir_code[idx] = generated_statement;
+                        }else {
+                            println!("NULL!");
+                        }
+
                     }
                     _ =>{}
                 }

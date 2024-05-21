@@ -30,7 +30,7 @@ fn main() {
 
     for (_,elapsed, testcase, _) in &x_y_s {
         i += elapsed;
-        ir_to_ctx(testcase);
+        println!("{}", replace_scope_with_indent(&ir_to_ctx(testcase)));
     }
     let avg = i / count;
     println!("average elapsed time: {avg}ms");
