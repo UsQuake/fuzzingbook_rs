@@ -5,7 +5,7 @@ pub fn get_python_grammar() -> Grammar<'static> {
     let mut python_grammar: Grammar = HashMap::new();
     python_grammar.insert(
         "<start>".to_string(),
-        vec![Union::OnlyA("<statements>".to_string())],
+        vec![Union::OnlyA("@Define:Primitive;\n@Define:Iterable;\n<statements>".to_string())],
     );
     python_grammar.insert(
         "<statements>".to_string(),
@@ -48,9 +48,9 @@ pub fn get_python_grammar() -> Grammar<'static> {
     python_grammar.insert(
         "<assign-statement>".to_string(),
         vec![
-            Union::OnlyA("@Assign:Any;".to_string()),
+            Union::OnlyA("@Assign:Iterable;".to_string()),
             Union::OnlyA("@Assign:Primitive;".to_string()),
-            Union::OnlyA("@Define:Any;".to_string()),
+            Union::OnlyA("@Define:Iterable;".to_string()),
             Union::OnlyA("@Define:Primitive;".to_string()),
         ],
     );
@@ -69,7 +69,8 @@ pub fn get_python_grammar() -> Grammar<'static> {
     python_grammar.insert(
         "<func-vars>".to_string(),
         vec![
-            Union::OnlyA("@Refer:Any;".to_string()),
+            Union::OnlyA("@Refer:Iterable;".to_string()),
+            Union::OnlyA("@Refer:Primitive;".to_string()),
             Union::OnlyA("<func-vars>".to_string()),
         ],
     );

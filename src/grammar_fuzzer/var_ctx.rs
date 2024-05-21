@@ -19,18 +19,19 @@ type Context = Stack<Vars>;
 lazy_static! {
     pub static ref RE_VAR_TYPE_EXPR: Regex = Regex::new(r"@[^;]+;").unwrap();
 }
-fn generate_unique_var_name(already_define_vars: &Vars) -> String {
-    let mut result = "val0".to_string();
+fn generate_unique_var_name(already_define_vars: &Vars, prefix:String) -> String {
+   
     let mut count = 0;
+    let mut result = prefix.clone()+ &count.to_string();
     while already_define_vars.get(&result).is_some() {
-        result = "val".to_string() + &count.to_string();
+        result = prefix.clone() + &count.to_string();
         count = count + 1;
     }
     result
 }
 
 fn get_var_info_from_ir(ir: &String) -> (String, HashSet<String>) {
-    let mut var_info: Vec<String> = ir
+    let var_info: Vec<String> = ir
         .clone()
         .split_off(0)
         .split(':')
@@ -78,22 +79,11 @@ pub fn ir_to_ctx(ir_code: &String, seed: &mut u64 /* , predefined_ctx:Context*/)
         super::Union::OnlyA(false),
     );
     let mut res_stack: Context = Vec::new();
-    let mut initial_vars: Vars = HashMap::new();
-    initial_vars.insert("val0".to_string(), HashSet::from(["Primitive".to_string()]));
-    initial_vars.insert("val1".to_string(), HashSet::from(["Primitive".to_string()]));
-    initial_vars.insert("val2".to_string(), HashSet::from(["Primitive".to_string()]));
-    initial_vars.insert("val3".to_string(), HashSet::from(["Primitive".to_string()]));
-    initial_vars.insert("any0".to_string(), HashSet::from(["Any".to_string()]));
-    initial_vars.insert("any1".to_string(), HashSet::from(["Any".to_string()]));
-    initial_vars.insert("any2".to_string(), HashSet::from(["Any".to_string()]));
-    initial_vars.insert("vec0".to_string(), HashSet::from(["Iterable".to_string()]));
-    initial_vars.insert("vec1".to_string(), HashSet::from(["Iterable".to_string()]));
-    initial_vars.insert("vec2".to_string(), HashSet::from(["Iterable".to_string()]));
-
-    res_stack.push(initial_vars);
+    res_stack.push(HashMap::new());
     let splitted_ir_code = get_splitted_ir_code(ir_code);
     let mut result_ir_code = splitted_ir_code.clone();
     let mut current_vars = res_stack.last().unwrap().clone();
+    let mut for_iter_var  = None;
     for (idx, str) in splitted_ir_code.iter().enumerate() {
         
         if str.chars().nth(0) == Some('@') {
@@ -117,17 +107,22 @@ pub fn ir_to_ctx(ir_code: &String, seed: &mut u64 /* , predefined_ctx:Context*/)
                     }
                 }
                 "@Define" => {
-                    let new_var_name = generate_unique_var_name(&current_vars);
-                    if var_traits.contains("ForIter") {
+                    
+                    if var_traits.contains("ForIter") || var_traits.contains("ForRange"){
+                        let new_var_name = generate_unique_var_name(&current_vars, "it".to_string());
+                        for_iter_var = Some(new_var_name.clone());
                         result_ir_code[idx] = new_var_name.clone();
+                    }else if var_traits.contains("Iterable") {
+                        let new_var_name = generate_unique_var_name(&current_vars, "vec".to_string());
+                        let mut generated_statement = new_var_name.clone() + " = ";
+                        current_vars.insert(new_var_name, HashSet::from(["Iterable".to_string()]));
+                        generated_statement = generated_statement + &fuzz_expr.fuzz(seed);
+                        result_ir_code[idx] = generated_statement;
+                    } else if var_traits.contains("Primitive"){
+                        let new_var_name = generate_unique_var_name(&current_vars, "var".to_string());
+                        let mut generated_statement = new_var_name.clone() + " = ";
                         current_vars.insert(new_var_name, HashSet::from(["Primitive".to_string()]));
-                    } else if var_traits.contains("ForRange") {
-                        result_ir_code[idx] = new_var_name.clone();
-                        current_vars.insert(new_var_name, HashSet::from(["Primitive".to_string()]));
-                    } else {
-                        let generated_statement =
-                            new_var_name.clone() + " = " + &fuzz_expr.fuzz(seed);
-                        current_vars.insert(new_var_name, HashSet::from(["Primitive".to_string()]));
+                        generated_statement = generated_statement + &fuzz_expr.fuzz(seed);
                         result_ir_code[idx] = generated_statement;
                     }
                 }
@@ -139,12 +134,6 @@ pub fn ir_to_ctx(ir_code: &String, seed: &mut u64 /* , predefined_ctx:Context*/)
                             generated_statement = generated_statement + &fuzz_expr.fuzz(seed);
                         } else if var_traits.contains("Iterable") {
                             generated_statement = generated_statement + &fuzz_arr.fuzz(seed);
-                        } else if var_traits.contains("Any"){
-                           if rand_num as f64 / referable_vars.len() as f64 > 0.5{
-                            generated_statement = generated_statement + &fuzz_expr.fuzz(seed);
-                           }else{
-                            generated_statement = generated_statement + &fuzz_arr.fuzz(seed);
-                           }
                         }
                         result_ir_code[idx] = generated_statement;
                     } else {
@@ -157,6 +146,10 @@ pub fn ir_to_ctx(ir_code: &String, seed: &mut u64 /* , predefined_ctx:Context*/)
             for ch in str.chars() {
                 if ch == '{' {
                     res_stack.push(current_vars.clone());
+                    if let Some(new_var_name) = for_iter_var{
+                        current_vars.insert(new_var_name, HashSet::from(["Primitive".to_string()]));
+                        for_iter_var= None;
+                    }
                 } else if ch == '}' {
                     current_vars = res_stack.pop().unwrap();
                 }
