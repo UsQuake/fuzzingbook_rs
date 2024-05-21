@@ -30,12 +30,12 @@ pub fn get_python_grammar() -> Grammar<'static> {
     python_grammar.insert(
         "<bool-expr>".to_string(),
         vec![
-            Union::OnlyA("<expr> != <expr> ".to_string()),
-            Union::OnlyA("<expr> == <expr>".to_string()),
-            Union::OnlyA("<expr> < <expr>".to_string()),
-            Union::OnlyA("<expr> > <expr>".to_string()),
-            Union::OnlyA("<expr> <= <expr>".to_string()),
-            Union::OnlyA("<expr> >= <expr>".to_string()),
+            Union::OnlyA("<term> != <term>".to_string()),
+            Union::OnlyA("<term> == <term>".to_string()),
+            Union::OnlyA("<term> < <term>".to_string()),
+            Union::OnlyA("<term> > <term>".to_string()),
+            Union::OnlyA("<term> <= <term>".to_string()),
+            Union::OnlyA("<term> >= <term>".to_string()),
         ],
     );
     python_grammar.insert(

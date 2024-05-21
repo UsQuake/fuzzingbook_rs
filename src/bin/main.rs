@@ -13,7 +13,7 @@ fn main() {
     let mut f = GrammarsFuzzer::new(
         &get_python_grammar(),
         "<start>",
-        0,
+        10,
         100,
         Union::OnlyA(false),
     );
