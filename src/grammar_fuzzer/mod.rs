@@ -1,5 +1,6 @@
 use self::options::exp_string;
 use crate::grammar::*;
+pub mod var_ctx;
 use lazy_static::lazy_static;
 use rustc_hash::FxHasher;
 use std::{
