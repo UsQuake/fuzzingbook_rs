@@ -116,7 +116,7 @@ pub fn ir_to_ctx(ir_code: &String, seed: &mut u64 /* , predefined_ctx:Context*/)
                         let new_var_name = generate_unique_var_name(&current_vars, "vec".to_string());
                         let mut generated_statement = new_var_name.clone() + " = ";
                         current_vars.insert(new_var_name, HashSet::from(["Iterable".to_string()]));
-                        generated_statement = generated_statement + &fuzz_expr.fuzz(seed);
+                        generated_statement = generated_statement + &fuzz_arr.fuzz(seed);
                         result_ir_code[idx] = generated_statement;
                     } else if var_traits.contains("Primitive"){
                         let new_var_name = generate_unique_var_name(&current_vars, "var".to_string());
