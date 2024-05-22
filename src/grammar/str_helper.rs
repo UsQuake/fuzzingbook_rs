@@ -9,6 +9,7 @@ static ASCII_DIGITS: [&'static str; 10] = ["0", "1", "2", "3", "4", "5", "6", "7
 
 pub enum CharRange {
     Digit,
+    NonZeroDigit,
     Letters,
 }
 pub fn range_chars_as_str<'l_use>(type_of_range: CharRange) -> Vec<Expansion<'l_use>> {
@@ -16,6 +17,13 @@ pub fn range_chars_as_str<'l_use>(type_of_range: CharRange) -> Vec<Expansion<'l_
         CharRange::Digit => {
             let mut res = Vec::with_capacity(ASCII_DIGITS.len());
             for st in ASCII_DIGITS {
+                res.push(super::Union::OnlyA(st.to_string()));
+            }
+            return res;
+        },
+        CharRange::NonZeroDigit => {
+            let mut res = Vec::with_capacity(ASCII_DIGITS.len());
+            for st in &ASCII_DIGITS[1..] {
                 res.push(super::Union::OnlyA(st.to_string()));
             }
             return res;

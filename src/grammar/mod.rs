@@ -53,6 +53,7 @@ pub fn nonterminals<'l_use>(expansion: &Expansion<'l_use>) -> Vec<String> {
 
     return ret;
 }
+
 pub fn extended_nonterminals<'l_use>(expansion: &Expansion<'l_use>) -> Vec<String> {
     let expansion = match expansion {
         Union::OnlyA(only_str) => only_str.to_string(),

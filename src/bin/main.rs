@@ -28,6 +28,8 @@ fn main() {
         let testcase = f.fuzz(&mut rand_seed);
         //let testcase = simple_grammar_fuzzer(&expr_grammar,"<start>", 15, 30, false).unwrap();
         let elapsed = now.elapsed().as_millis();
+        unsafe{dbg!(CACHE_MISS_COUNT);
+        dbg!(CACHE_HIT_COUNT);}
         x_y_s.push((testcase.len(), elapsed, testcase, mutated_seed_copy));
     }
     //17545 2.4s
@@ -36,11 +38,9 @@ fn main() {
 
     for (_, elapsed, testcase, seed_copy) in &x_y_s {
         i += elapsed;
-        println!(
-            "{}",
-            replace_scope_with_indent(&ir_to_ctx(testcase, &mut seed_copy.clone()))
-        );
+        std::fs::write("./a.py",  replace_scope_with_indent(&ir_to_ctx(testcase, &mut seed_copy.clone()))).unwrap();
     }
+
     let avg = i / count;
     println!("average elapsed time: {avg}ms");
 }

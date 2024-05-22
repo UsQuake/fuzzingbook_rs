@@ -4,11 +4,12 @@ pub mod var_ctx;
 use lazy_static::lazy_static;
 use rustc_hash::FxHasher;
 use std::{
-    collections::{BTreeSet, HashSet},
-    hash::{Hash, Hasher},
+    collections::{BTreeSet, HashMap, HashSet},
+    hash::{Hash, Hasher}, time::Instant,
 };
 mod test;
-
+pub static mut CACHE_HIT_COUNT: u64 = 0;
+pub static mut CACHE_MISS_COUNT: u64 = 0;
 #[derive(Clone)]
 pub struct DerivationTree {
     pub symbol: String,
@@ -157,12 +158,12 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
         res
     }
     pub fn any_possible_expansions(node: &DerivationTree) -> bool {
-        match &(&node).children {
-            Some(node_children) => node_children
-                .iter()
-                .any(|child| Self::any_possible_expansions(child)),
-            None => true,
-        }
+            match &(&node).children {
+                Some(node_children) => node_children
+                    .iter()
+                    .any(|child| Self::any_possible_expansions(child)),
+                None => true,
+            }
     }
 
     pub fn choose_tree_expansion(&self, seed: &mut u64, children_indices: &Vec<usize>) -> usize {
@@ -176,45 +177,68 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
             }
             Some(children) => {
                 let mut i = 0;
+
                 let mut index_vec: Vec<usize> = Vec::new();
-                for child in (&children).iter() {
-                    if Self::any_possible_expansions(child) {
-                        index_vec.push(i);
+
+                     
+                    for child in (&children).iter() {
+                        if Self::any_possible_expansions(child) {
+                            index_vec.push(i);
+                        }
+                        i += 1;
                     }
-                    i += 1;
-                }
+
+
                 let child_to_be_expanded = self.choose_tree_expansion(seed, &index_vec);
                 let splitter = children.get_mut(index_vec[child_to_be_expanded]).unwrap();
                 self.expand_tree_once(seed, splitter);
             }
         }
     }
-    pub fn symbol_cost(&self, symbol: &String, seen: &HashSet<String>) -> f64 {
+    pub fn symbol_cost(&self, symbol: &String, seen: &HashSet<String>
+        ,cache: &mut HashMap<String,f64>) -> f64 {
         let expansions = &self.grammar[symbol];
         expansions
             .iter()
             .map(|expansion| {
-                self.expansion_cost(&expansion, seen | &HashSet::from([symbol.clone()]))
+                self.expansion_cost(&expansion,
+                     seen | &HashSet::from([symbol.clone()])
+                ,cache)
             })
             .reduce(f64::min)
             .unwrap()
     }
 
-    pub fn expansion_cost(&self, expansion: &Expansion, seen: HashSet<String>) -> f64 {
-        let symbols = nonterminals(expansion);
-        if symbols.len() == 0 {
-            return 1.0;
+    pub fn expansion_cost(&self, expansion: &Expansion, seen: HashSet<String>, 
+        cache: &mut HashMap<String, f64>) -> f64 {
+        let exp_str = match expansion {
+                Union::OnlyA(only_str) => only_str.to_string(),
+                Union::OnlyB(str_and_opt) => str_and_opt.0.to_string(),
+        };
+        match cache.get(&exp_str){
+            Some(cost) => {
+                unsafe{CACHE_HIT_COUNT +=1;}
+                *cost},
+            None =>{
+                unsafe{CACHE_MISS_COUNT += 1;}
+                let symbols = nonterminals(expansion);
+                let mut res = 0.0;
+                if symbols.len() == 0 {
+                    res = 1.0;
+                }else if symbols.iter().any(|s| seen.contains(s)) {
+                    res = f64::INFINITY;
+                }else{
+                    res = symbols
+                    .iter()
+                    .map(|sym| self.symbol_cost(&sym, &seen, 
+                    cache))
+                    .sum::<f64>()
+                    + 1.0;
+                }
+                cache.insert(exp_str, res);
+                res
+            }
         }
-
-        if symbols.iter().any(|s| seen.contains(s)) {
-            return f64::INFINITY;
-        }
-
-        return symbols
-            .iter()
-            .map(|sym| self.symbol_cost(&sym, &seen))
-            .sum::<f64>()
-            + 1.0;
     }
 
     pub fn expand_node_by_cost(
@@ -225,19 +249,15 @@ impl<'l_use> GrammarsFuzzer<'l_use> {
     ) -> DerivationTree {
         let (symbol, children) = (node.symbol.clone(), &node.children);
         assert!(children.is_none());
-        let expansions = &self.grammar[&symbol];
-
-        let children_alternatives_with_cost: Vec<_> = expansions
+        let expansions = &self.grammar[&symbol];      
+        let children_alternatives_with_cost : Vec<_> = expansions
             .iter()
-            .map(|exp| {
-                (
-                    self.expansion_to_children(exp),
-                    self.expansion_cost(exp, HashSet::from([symbol.clone()])),
-                    exp,
-                )
-            })
+            .map(|exp| (
+                self.expansion_to_children(exp),
+                self.expansion_cost(exp, HashSet::from([symbol.clone()]), &mut HashMap::new()),
+                exp       
+            ))
             .collect();
-
         let costs: Vec<_> = children_alternatives_with_cost
             .iter()
             .map(|(_, cost, _)| cost)
