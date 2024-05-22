@@ -56,7 +56,7 @@ pub fn get_ruby_grammar() -> Grammar<'static> {
     ruby_grammar.insert(
         "<for-statement>".to_string(),
         vec![
-            Union::OnlyA("for @Define:ForRange; in 0..<non-zero-digit>{\n<statements>}".to_string()),
+            Union::OnlyA("for @Define:ForRange; in 1..<non-zero-digit>{\n<statements>}".to_string()),
             Union::OnlyA("for @Define:ForIter; in @Refer:Iterable;{\n<statements>}".to_string()),
         ],
     );
@@ -175,7 +175,7 @@ pub fn get_python_grammar() -> Grammar<'static> {
     python_grammar.insert(
         "<for-statement>".to_string(),
         vec![
-            Union::OnlyA("for @Define:ForRange; in range(<non-zero-digit>):{\n<statements>}".to_string()),
+            Union::OnlyA("for @Define:ForRange; in range(1,<non-zero-digit>):{\n<statements>}".to_string()),
             Union::OnlyA("for @Define:ForIter; in @Refer:Iterable;:{\n<statements>}".to_string()),
         ],
     );
