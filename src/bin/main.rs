@@ -11,7 +11,7 @@ use std::{
 };
 fn main() {
     let mut f = GrammarsFuzzer::new(
-        &get_python_grammar(),
+        &get_ruby_grammar(),
         "<start>",
         10,
         100,
@@ -38,7 +38,7 @@ fn main() {
 
     for (_, elapsed, testcase, seed_copy) in &x_y_s {
         i += elapsed;
-        std::fs::write("./a.py",  replace_scope_with_indent(&ir_to_ctx(testcase, &mut seed_copy.clone()))).unwrap();
+        std::fs::write("./a.rb",  replace_scope_with_indent(&ir_to_ctx(testcase, &mut seed_copy.clone()))).unwrap();
     }
 
     let avg = i / count;
