@@ -4992,7 +4992,7 @@ async function wasi_main() {
                 ["operator.py", new File(new TextEncoder().encode(read("./lib/operator.py")))],
                 ])
   ];
-  let wasi = new WASI(wasi_args, env, fds);
+  let wasi = new WASI(wasi_args, env, fds, {debug:false});
   let wasm = await WebAssembly.compile(read_file("./python.wasm"));
   let inst = await WebAssembly.instantiate(wasm, {
     wasi_snapshot_preview1: wasi.wasiImport,

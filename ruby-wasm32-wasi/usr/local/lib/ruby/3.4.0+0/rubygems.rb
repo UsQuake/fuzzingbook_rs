@@ -14,7 +14,6 @@ end
 
 # Must be first since it unloads the prelude from 1.9.2
 require_relative "rubygems/compatibility"
-
 require_relative "rubygems/defaults"
 require_relative "rubygems/deprecate"
 require_relative "rubygems/errors"
