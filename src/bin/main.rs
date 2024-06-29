@@ -23,19 +23,18 @@ fn main() {
     let testcase = f.fuzz(&mut rand_seed);
     std::fs::write("./testcase.py",  replace_scope_with_indent(&ir_to_ctx(&testcase, &mut rand_seed.clone()))).unwrap();
     
-    let native_result = std::process::Command::new("python")
+    let native_raw_result = std::process::Command::new("python")
         .arg("testcase.py")
         .output()
         .expect("failed to execute process");
-    let result_string =  String::from_utf8(native_result.stdout).unwrap();
-    println!("{}",result_string);
+    let native_result_string =  String::from_utf8(native_raw_result.stdout).unwrap();
 
-    let wasi_result = std::process::Command::new("./js")
+    let wasi_raw_result = std::process::Command::new("/home/song/js")
     .arg("run-wasi-py.js")
     .arg("--")
     .arg("none")
     .output()
     .expect("failed to execute process");
-    let result_string =  String::from_utf8(wasi_result.stdout).unwrap();
-    println!("{}",result_string);
+    let wasi_result_string =  String::from_utf8(wasi_raw_result.stdout).unwrap();
+    assert_eq!(native_result_string, wasi_result_string);
 }

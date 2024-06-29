@@ -2176,7 +2176,7 @@ function compile(bytes, withJsStringBuiltins) {
 
   // Signals `Stopwatch._initTicker` to use `Date.now` to get ticks instead of
   // `performance.now`, as it's not available in d8.
-  self.dartUseDateNowForTicks = true;
+  self.dartUseDateNowForTicks = false;
 })(this, []);
 
 async function wasi_main() {
@@ -2184,7 +2184,7 @@ async function wasi_main() {
   let env = ["PYTHONPATH=/lib.wasi-wasm32-3.13-pydebug"];
   let fds = [
     new OpenFile(new File([])), // stdin
-    ConsoleStdout.lineBuffered((msg) => print(`[WASI stdout] ${msg}`)),
+    ConsoleStdout.lineBuffered((msg) => print(`${msg}`)),
     ConsoleStdout.lineBuffered((msg) => print(`[WASI stderr] ${msg}`)),
     new PreopenDirectory("/", [
       ["testcase.py", new File(new TextEncoder().encode(read("./testcase.py")))],
@@ -4998,5 +4998,6 @@ async function wasi_main() {
     wasi_snapshot_preview1: wasi.wasiImport,
   });
   wasi.start(inst);
+  quit();
 }
 wasi_runner(wasi_main);
